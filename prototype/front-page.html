@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Voitkus — front page prototype</title>
+  <link rel="stylesheet" href="../brand/design-tokens.css">
+  <style>
+    * { box-sizing: border-box; }
+
+    :root {
+      --font-display: "Helvetica Neue", Arial, sans-serif;
+      --font-body: "Helvetica Neue", Arial, sans-serif;
+      --header-pad-y: 32px;
+    }
+
+    body {
+      margin: 0;
+      background: var(--voitkus-white);
+      color: var(--voitkus-black);
+      font-family: var(--font-body);
+    }
+
+    a { color: inherit; text-decoration: none; }
+
+    /* Header — logo · nav · actions */
+    .site-header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 10;
+      width: 100%;
+      padding: var(--header-pad-y) var(--grid-gutter);
+      background: rgba(255, 255, 255, 0.85);
+      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(10, 10, 10, 0.06);
+    }
+
+    .site-header__inner {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      grid-template-areas: "brand nav actions";
+      align-items: center;
+      width: 100%;
+    }
+
+    .site-branding { grid-area: brand; justify-self: start; }
+
+    .site-logo {
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+    }
+
+    .site-nav { grid-area: nav; justify-self: center; }
+
+    .site-nav__list {
+      display: flex;
+      gap: 32px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      font-size: 14px;
+      white-space: nowrap;
+    }
+
+    .site-nav__list a {
+      transition: opacity 160ms ease;
+    }
+
+    .site-nav__list a:hover,
+    .header-action:hover {
+      opacity: 0.55;
+    }
+
+    .header-actions {
+      display: flex;
+      grid-area: actions;
+      justify-self: end;
+      align-items: center;
+      gap: 20px;
+      font-size: 14px;
+    }
+
+    .header-action {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: opacity 160ms ease;
+    }
+
+    .header-action--language {
+      padding-right: 18px;
+      border-right: 1px solid rgba(10, 10, 10, 0.18);
+      font-weight: 800;
+      letter-spacing: 0.05em;
+    }
+
+    .cart-count {
+      display: inline-grid;
+      min-width: 20px;
+      height: 20px;
+      place-items: center;
+      border-radius: 999px;
+      background: var(--voitkus-black);
+      color: var(--voitkus-white);
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .mobile-menu-toggle { display: none; }
+
+    /* Hero */
+    .hero {
+      display: flex;
+      align-items: center;
+      min-height: 100vh;
+      min-height: 100dvh;
+      padding: 120px var(--grid-gutter) max(60px, env(safe-area-inset-bottom, 0px));
+    }
+
+    .hero__main {
+      display: grid;
+      width: 100%;
+      grid-template-columns: 1.1fr 0.9fr;
+      grid-template-areas:
+        "intro product"
+        "copy product";
+      gap: 40px 48px;
+      align-items: start;
+    }
+
+    .hero__intro { grid-area: intro; max-width: var(--content-wide); }
+
+    .hero__copy {
+      grid-area: copy;
+      max-width: var(--content-text);
+    }
+
+    .hero__eyebrow {
+      margin: 0 0 20px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .hero h1 {
+      margin: 0 0 28px;
+      font-family: var(--font-display);
+      font-size: clamp(72px, 10vw, 168px);
+      font-weight: 700;
+      line-height: 0.92;
+      letter-spacing: -0.06em;
+    }
+
+    .hero__text {
+      margin: 0 0 32px;
+      max-width: 36rem;
+      font-size: 18px;
+      line-height: 1.55;
+    }
+
+    .hero__cta {
+      display: inline-block;
+      padding: 14px 28px;
+      border-radius: 999px;
+      background: var(--voitkus-black);
+      color: var(--voitkus-white);
+      font-size: 14px;
+      font-weight: 600;
+      transition: opacity 160ms ease;
+    }
+
+    .hero__cta:hover { opacity: 0.75; }
+
+    .hero__product {
+      display: flex;
+      grid-area: product;
+      justify-content: center;
+      align-items: flex-start;
+      margin: 0;
+    }
+
+    .hero-bag--placeholder {
+      display: grid;
+      width: min(100%, 380px);
+      min-height: min(480px, 65vh);
+      max-height: min(560px, 72vh);
+      place-items: center;
+      border-radius: 4px;
+      background: var(--lot-magenta);
+      color: var(--voitkus-white);
+      font-size: 13px;
+      font-weight: 300;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+    }
+
+    /* Profiles — block #2 */
+    .profiles {
+      padding: 80px var(--grid-gutter) 64px;
+      border-top: 1px solid rgba(10, 10, 10, 0.06);
+    }
+
+    .profiles__header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 48px;
+    }
+
+    .profiles__header-text {
+      max-width: 36rem;
+    }
+
+    .profiles__swipe-hint {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--voitkus-gray);
+      white-space: nowrap;
+    }
+
+    .profiles__eyebrow {
+      margin: 0 0 12px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--voitkus-gray);
+    }
+
+    .profiles__title {
+      margin: 0;
+      font-family: var(--font-display);
+      font-size: clamp(28px, 4vw, 44px);
+      font-weight: 700;
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+    }
+
+    .profiles__grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 24px;
+    }
+
+    .profile-card {
+      --profile-accent: var(--lot-yellow);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      min-height: 220px;
+      padding: 28px 24px 24px;
+      border: 1px solid rgba(10, 10, 10, 0.08);
+      border-radius: 8px;
+      text-decoration: none;
+      color: inherit;
+      background: var(--voitkus-white);
+      transition: background 240ms ease, color 240ms ease, border-color 240ms ease, transform 240ms ease;
+    }
+
+    .profile-card:hover {
+      background: var(--voitkus-black);
+      color: var(--voitkus-white);
+      border-color: var(--voitkus-black);
+      transform: translateY(-4px);
+    }
+
+    .profile-card:nth-child(1),
+    .profile-card:nth-child(2) {
+      grid-column: span 3;
+    }
+
+    .profile-card:nth-child(3),
+    .profile-card:nth-child(4),
+    .profile-card:nth-child(5) {
+      grid-column: span 2;
+    }
+
+    .profile-card[data-profile="espresso"] {
+      --profile-accent: var(--lot-orange);
+    }
+
+    .profile-card[data-profile="funky"] {
+      --profile-accent: var(--lot-magenta);
+    }
+
+    .profile-card[data-profile="cyan"] {
+      --profile-accent: var(--lot-cyan);
+    }
+
+    .profile-card[data-profile="lime"] {
+      --profile-accent: var(--lot-lime);
+    }
+
+    .profile-card__header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .profile-card__title-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .profile-card__dot {
+      display: block;
+      width: 16px;
+      height: 16px;
+      border-radius: 8px;
+      background: var(--profile-accent);
+      transition: width 240ms ease, border-radius 240ms ease;
+    }
+
+    .profile-card:hover .profile-card__dot {
+      width: 48px;
+      border-radius: 4px;
+    }
+
+    .profile-card__sense {
+      margin: 0;
+      font-family: var(--font-display);
+      font-size: clamp(20px, 2vw, 24px);
+      font-weight: 700;
+      line-height: 1.15;
+      letter-spacing: -0.02em;
+    }
+
+    .profile-card__arrow {
+      font-size: 20px;
+      transition: transform 240ms ease, color 240ms ease;
+    }
+
+    .profile-card:hover .profile-card__arrow {
+      transform: translateX(6px);
+      color: var(--profile-accent);
+    }
+
+    .profile-card__feelings {
+      margin: 0 0 16px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--voitkus-gray);
+      transition: color 240ms ease;
+    }
+
+    .profile-card:hover .profile-card__feelings {
+      color: var(--profile-accent);
+    }
+
+    .profile-card__text {
+      flex: 1 1 auto;
+      margin: 0;
+      font-size: 14px;
+      line-height: 1.55;
+      color: var(--voitkus-gray-dark);
+      transition: color 240ms ease;
+    }
+
+    .profile-card:hover .profile-card__text {
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    .proto-note {
+      padding: 20px var(--grid-gutter) 48px;
+      font-size: 13px;
+      color: var(--voitkus-gray);
+      border-top: 1px solid rgba(10, 10, 10, 0.08);
+    }
+
+    .proto-note code {
+      font-size: 12px;
+    }
+
+    /* ==========================================================================
+       Products Section (Aktualne loty) - Editorial Specialty
+       ========================================================================== */
+
+    .products {
+      padding: 100px var(--grid-gutter) 140px;
+      background: var(--voitkus-white);
+      color: var(--voitkus-black);
+    }
+
+    .products__header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 72px;
+      padding-bottom: 28px;
+      border-bottom: 1px solid var(--voitkus-black);
+    }
+
+    .products__heading {
+      display: flex;
+      align-items: baseline;
+      gap: 18px;
+    }
+
+    .products__title {
+      margin: 0;
+      font-family: var(--font-display);
+      font-size: clamp(38px, 5vw, 60px);
+      font-weight: 700;
+      line-height: 0.95;
+      letter-spacing: -0.04em;
+    }
+
+    .products__count {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      color: var(--voitkus-gray);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .products__link {
+      position: relative;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      white-space: nowrap;
+    }
+
+    .products__link::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      bottom: -4px;
+      width: 100%;
+      height: 1px;
+      background: var(--voitkus-black);
+      transform: scaleX(1);
+      transform-origin: right;
+      transition: transform 320ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .products__link:hover::after {
+      transform: scaleX(0);
+    }
+
+    .products__grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 56px 36px;
+    }
+
+    .product-card {
+      --lot-accent: var(--lot-yellow);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .product-card[data-lot-accent="orange"] { --lot-accent: var(--lot-orange); }
+    .product-card[data-lot-accent="magenta"] { --lot-accent: var(--lot-magenta); }
+    .product-card[data-lot-accent="cyan"] { --lot-accent: var(--lot-cyan); }
+    .product-card[data-lot-accent="lime"] { --lot-accent: var(--lot-lime); }
+
+    .product-card__visual {
+      position: relative;
+      aspect-ratio: 4 / 5;
+      background: #F1EEE8;
+      overflow: hidden;
+      border-radius: 16px;
+    }
+
+    .product-card__index {
+      position: absolute;
+      top: 16px;
+      left: 18px;
+      z-index: 2;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      color: var(--voitkus-gray-dark);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .product-card__badge {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      z-index: 2;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 7px 13px 7px 11px;
+      background: var(--voitkus-white);
+      color: var(--voitkus-black);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      border-radius: 999px;
+    }
+
+    .product-card__badge::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--lot-accent);
+    }
+
+    .product-card__image-placeholder {
+      width: 100%;
+      height: 100%;
+      display: grid;
+      place-items: center;
+      color: #B4ADA0;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      transition: transform 800ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .product-card:hover .product-card__image-placeholder {
+      transform: scale(1.05);
+    }
+
+    .product-card__quick-add {
+      position: absolute;
+      left: 14px;
+      right: 14px;
+      bottom: 14px;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 13px 16px 13px 20px;
+      background: var(--voitkus-black);
+      color: var(--voitkus-white);
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity 360ms cubic-bezier(0.16, 1, 0.3, 1),
+                  transform 360ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .product-card:hover .product-card__quick-add {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .product-card__quick-add-icon {
+      display: grid;
+      place-items: center;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: var(--lot-accent);
+      color: var(--voitkus-black);
+      font-size: 14px;
+    }
+
+    .product-card__content {
+      display: flex;
+      flex-direction: column;
+      padding-top: 20px;
+    }
+
+    .product-card__origin {
+      margin: 0 0 10px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--voitkus-gray);
+    }
+
+    .product-card__title-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 12px;
+    }
+
+    .product-card__title {
+      margin: 0;
+      font-family: var(--font-display);
+      font-size: 24px;
+      font-weight: 700;
+      line-height: 1.05;
+      letter-spacing: -0.025em;
+      transition: color 240ms ease;
+    }
+
+    .product-card:hover .product-card__title {
+      color: var(--lot-accent);
+    }
+
+    .product-card__price {
+      font-size: 16px;
+      font-weight: 600;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .product-card__notes {
+      margin: 0;
+      font-size: 15px;
+      line-height: 1.45;
+      color: var(--voitkus-gray);
+    }
+
+    @media (max-width: 1100px) {
+      .products__grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 900px) {
+      .site-header {
+        padding: 20px var(--grid-gutter-md);
+      }
+
+      .site-header__inner {
+        grid-template-columns: 1fr auto;
+        grid-template-areas: "brand actions";
+      }
+
+      .site-nav {
+        position: fixed;
+        inset: 72px 0 0;
+        padding: 28px 20px;
+        background: var(--voitkus-white);
+        visibility: hidden;
+        transform: translateX(100%);
+        transition: transform 240ms ease, visibility 240ms ease;
+      }
+
+      body.mobile-nav-open {
+        overflow: hidden;
+      }
+
+      body.mobile-nav-open .site-nav {
+        visibility: visible;
+        transform: translateX(0);
+      }
+
+      .site-nav__list {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 22px;
+        font-size: 18px;
+      }
+
+      .header-action__label { display: none; }
+
+      .mobile-menu-toggle {
+        display: inline-flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 5px;
+        width: 34px;
+        height: 34px;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        cursor: pointer;
+      }
+
+      .mobile-menu-toggle span {
+        display: block;
+        width: 20px;
+        height: 2px;
+        background: currentColor;
+        transition: transform 200ms ease;
+      }
+
+      body.mobile-nav-open .mobile-menu-toggle span:first-child {
+        transform: translateY(3.5px) rotate(45deg);
+      }
+
+      body.mobile-nav-open .mobile-menu-toggle span:last-child {
+        transform: translateY(-3.5px) rotate(-45deg);
+      }
+
+      .hero {
+        align-items: flex-start;
+        min-height: auto;
+        padding: 100px var(--grid-gutter-md) 40px;
+      }
+
+      .hero__main {
+        grid-template-columns: 1fr minmax(108px, 38vw);
+        grid-template-areas:
+          "intro product"
+          "copy copy";
+        gap: 20px 16px;
+      }
+
+      .hero h1 {
+        font-size: clamp(44px, 11.5vw, 72px);
+      }
+
+      .hero-bag--placeholder {
+        min-height: min(200px, 32vh);
+        max-height: min(280px, 38vh);
+      }
+
+      .profiles {
+        padding: 56px var(--grid-gutter-md) 48px;
+      }
+
+      .profiles__header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+        margin-bottom: 32px;
+      }
+
+      .profiles__swipe-hint {
+        display: flex;
+      }
+
+      .profiles__grid {
+        display: flex;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        scrollbar-width: none; /* Firefox */
+        padding-bottom: 16px;
+        margin: 0 calc(var(--grid-gutter-md) * -1);
+        padding: 0 var(--grid-gutter-md) 16px;
+        gap: 12px;
+      }
+
+      .profiles__grid::-webkit-scrollbar {
+        display: none; /* Safari and Chrome */
+      }
+
+      .profile-card,
+      .profile-card:nth-child(1),
+      .profile-card:nth-child(2),
+      .profile-card:nth-child(3),
+      .profile-card:nth-child(4),
+      .profile-card:nth-child(5) {
+        flex: 0 0 calc(85vw - var(--grid-gutter-md));
+        scroll-snap-align: start;
+        min-height: 0;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .site-header {
+        padding: 16px var(--grid-gutter-xs);
+      }
+
+      .hero {
+        padding: 88px var(--grid-gutter-xs) 32px;
+      }
+
+      .profiles {
+        padding: 48px var(--grid-gutter-xs) 40px;
+      }
+
+      .products {
+        padding: 64px var(--grid-gutter-xs) 80px;
+      }
+
+      .products__header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 24px;
+        margin-bottom: 48px;
+      }
+
+      .products__grid {
+        display: flex;
+        flex-direction: column;
+        gap: 64px;
+      }
+
+      .product-card:nth-child(n) {
+        margin-top: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="site-header__inner">
+      <div class="site-branding">
+        <a class="site-logo" href="#">VOITKUS</a>
+      </div>
+
+      <nav id="site-nav" class="site-nav" aria-label="Primary">
+        <ul class="site-nav__list">
+          <li><a href="#">Kawa</a></li>
+          <li><a href="#">Brew guides</a></li>
+          <li><a href="#">B2B</a></li>
+          <li><a href="#">O nas</a></li>
+          <li><a href="#">Kontakt</a></li>
+        </ul>
+      </nav>
+
+      <div class="header-actions">
+        <a class="header-action header-action--language" href="#" aria-label="Język">PL</a>
+        <a class="header-action" href="#">
+          <span class="header-action__label">Konto</span>
+        </a>
+        <a class="header-action" href="#">
+          <span class="header-action__label">Koszyk</span>
+          <span class="cart-count">4</span>
+        </a>
+        <button
+          class="mobile-menu-toggle"
+          type="button"
+          aria-controls="site-nav"
+          aria-expanded="false"
+          aria-label="Menu"
+        >
+          <span></span>
+          <span></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero__main">
+        <div class="hero__intro">
+          <p class="hero__eyebrow" lang="en">COFFEE ROASTERY · POLAND</p>
+          <h1 id="hero-title" lang="en">
+            Roasted<br>
+            for curious<br>
+            people.
+          </h1>
+        </div>
+
+        <figure class="hero__product" aria-label="Opakowanie kawy Voitkus">
+          <div class="hero-bag--placeholder" role="img" aria-label="Opakowanie kawy Voitkus">
+            <span lang="en">VOITKUS PACK</span>
+          </div>
+        </figure>
+
+        <div class="hero__copy">
+          <p class="hero__text">
+            Czysta, wyrazista kawa speciality — terroir, przejrzystość i słodycz w filiżance.
+          </p>
+          <a class="hero__cta" href="#">Kup kawę</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="profiles" aria-labelledby="profiles-title">
+      <header class="profiles__header">
+        <div class="profiles__header-text">
+          <p class="profiles__eyebrow">Po czym wybieramy kawę</p>
+          <h2 id="profiles-title">Dla ludzi, którzy pytają przed pierwszym łykiem</h2>
+        </div>
+        <div class="profiles__swipe-hint" aria-hidden="true">
+          Przesuń <span style="font-size: 14px;">→</span>
+        </div>
+      </header>
+
+      <div class="profiles__grid">
+        <a href="/shop/?filter=everyday" class="profile-card" data-profile="everyday">
+          <div class="profile-card__header">
+            <div class="profile-card__title-group">
+              <span class="profile-card__dot"></span>
+              <h3 class="profile-card__sense">BALANS</h3>
+            </div>
+            <span class="profile-card__arrow">→</span>
+          </div>
+          <p class="profile-card__feelings">Czekolada · orzech · czytelność</p>
+          <p class="profile-card__text">
+            Czysta, czytelna filiżanka. Widzisz warstwy smaku, nie musisz zgadywać.
+          </p>
+        </a>
+
+        <a href="/shop/?filter=funky" class="profile-card" data-profile="espresso">
+          <div class="profile-card__header">
+            <div class="profile-card__title-group">
+              <span class="profile-card__dot"></span>
+              <h3 class="profile-card__sense">TERROIR</h3>
+            </div>
+            <span class="profile-card__arrow">→</span>
+          </div>
+          <p class="profile-card__feelings">Słońce · owoc · pochodzenie</p>
+          <p class="profile-card__text">
+            Kawa, która smakuje jak miejsce, w którym wyrosła. Rozpoznajesz region w ustach.
+          </p>
+        </a>
+
+        <a href="/shop/?filter=funky" class="profile-card" data-profile="funky">
+          <div class="profile-card__header">
+            <div class="profile-card__title-group">
+              <span class="profile-card__dot"></span>
+              <h3 class="profile-card__sense">EKSPRESJA</h3>
+            </div>
+            <span class="profile-card__arrow">→</span>
+          </div>
+          <p class="profile-card__feelings">Kwiat · jagoda · zaskoczenie</p>
+          <p class="profile-card__text">
+            Odważne nuty i nietypowa obróbka. Zatrzymuje Cię i każe sięgnąć po drugi łyk.
+          </p>
+        </a>
+
+        <a href="/shop/?filter=everyday" class="profile-card" data-profile="cyan">
+          <div class="profile-card__header">
+            <div class="profile-card__title-group">
+              <span class="profile-card__dot"></span>
+              <h3 class="profile-card__sense">DETAL</h3>
+            </div>
+            <span class="profile-card__arrow">→</span>
+          </div>
+          <p class="profile-card__feelings">Herbata · cytrus · precyzja</p>
+          <p class="profile-card__text">
+            Wysoka kwasowość i herbaciane nuty. Wymaga skupienia, by usłyszeć wszystko.
+          </p>
+        </a>
+
+        <a href="/shop/?filter=limited" class="profile-card" data-profile="lime">
+          <div class="profile-card__header">
+            <div class="profile-card__title-group">
+              <span class="profile-card__dot"></span>
+              <h3 class="profile-card__sense">MIKROLOT</h3>
+            </div>
+            <span class="profile-card__arrow">→</span>
+          </div>
+          <p class="profile-card__feelings">Eksperyment · krótki drop</p>
+          <p class="profile-card__text">
+            Mała partia, która zaraz zniknie. Pijesz teraz, bo za miesiąc już jej nie będzie.
+          </p>
+        </a>
+      </div>
+    </section>
+
+    <section class="products" aria-labelledby="products-title">
+      <header class="products__header">
+        <div class="products__heading">
+          <h2 id="products-title" class="products__title">Aktualne loty</h2>
+          <span class="products__count">(03)</span>
+        </div>
+        <a href="/shop/" class="products__link">Zobacz wszystkie</a>
+      </header>
+
+      <div class="products__grid">
+        <!-- Lot 1: Ethiopia Sidama (Orange / Funky) -->
+        <a href="/product/ethiopia-sidama-natural/" class="product-card" data-lot-accent="orange">
+          <div class="product-card__visual">
+            <span class="product-card__index">/01</span>
+            <span class="product-card__badge">Nowość</span>
+            <div class="product-card__image-placeholder">FOTO PACZKI</div>
+            <div class="product-card__quick-add">
+              <span>Do koszyka</span>
+              <span class="product-card__quick-add-icon" aria-hidden="true">+</span>
+            </div>
+          </div>
+          <div class="product-card__content">
+            <p class="product-card__origin">Etiopia · Natural</p>
+            <div class="product-card__title-row">
+              <h3 class="product-card__title">Ethiopia Sidama</h3>
+              <span class="product-card__price">62 zł</span>
+            </div>
+            <p class="product-card__notes">Herbata, cytrusy, kwiatowy finisz.</p>
+          </div>
+        </a>
+
+        <!-- Lot 2: Colombia Huila (Yellow / Everyday) -->
+        <a href="/product/colombia-huila-washed/" class="product-card" data-lot-accent="yellow">
+          <div class="product-card__visual">
+            <span class="product-card__index">/02</span>
+            <div class="product-card__image-placeholder">FOTO PACZKI</div>
+            <div class="product-card__quick-add">
+              <span>Do koszyka</span>
+              <span class="product-card__quick-add-icon" aria-hidden="true">+</span>
+            </div>
+          </div>
+          <div class="product-card__content">
+            <p class="product-card__origin">Kolumbia · Washed</p>
+            <div class="product-card__title-row">
+              <h3 class="product-card__title">Colombia Huila</h3>
+              <span class="product-card__price">49 zł</span>
+            </div>
+            <p class="product-card__notes">Czekolada, orzech, czerwone owoce.</p>
+          </div>
+        </a>
+
+        <!-- Lot 3: Brazil Cerrado (Yellow / Espresso) -->
+        <a href="/product/brazil-cerrado-espresso/" class="product-card" data-lot-accent="yellow">
+          <div class="product-card__visual">
+            <span class="product-card__index">/03</span>
+            <span class="product-card__badge">Bestseller</span>
+            <div class="product-card__image-placeholder">FOTO PACZKI</div>
+            <div class="product-card__quick-add">
+              <span>Do koszyka</span>
+              <span class="product-card__quick-add-icon" aria-hidden="true">+</span>
+            </div>
+          </div>
+          <div class="product-card__content">
+            <p class="product-card__origin">Brazylia · Espresso</p>
+            <div class="product-card__title-row">
+              <h3 class="product-card__title">Brazil Cerrado</h3>
+              <span class="product-card__price">52 zł</span>
+            </div>
+            <p class="product-card__notes">Karmel, orzech laskowy, czekolada.</p>
+          </div>
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <p class="proto-note">
+  Prototyp: <code>prototype/front-page.html</code> · Hero + sekcja #2 (Everyday / Espresso / Funky).
+  Następny krok: blok #3 «Aktualne loty».
+  </p>
+
+  <script>
+    (function () {
+      const toggle = document.querySelector('.mobile-menu-toggle');
+      const nav = document.getElementById('site-nav');
+      if (!toggle || !nav) return;
+      toggle.addEventListener('click', function () {
+        const open = !document.body.classList.contains('mobile-nav-open');
+        document.body.classList.toggle('mobile-nav-open', open);
+        toggle.setAttribute('aria-expanded', open);
+      });
+      nav.querySelectorAll('a').forEach(function (a) {
+        a.addEventListener('click', function () {
+          document.body.classList.remove('mobile-nav-open');
+          toggle.setAttribute('aria-expanded', 'false');
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

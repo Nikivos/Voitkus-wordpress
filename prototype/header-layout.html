@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Voitkus — header layout prototype</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: "Helvetica Neue", Arial, sans-serif;
+      color: #0a0a0a;
+      background: #fff;
+    }
+
+    /* Lumora-style: logo left · nav center · actions right */
+    .site-header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 10;
+      width: 100%;
+      padding: 32px 48px;
+      background: #fff;
+    }
+
+    .site-header__inner {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      width: 100%;
+    }
+
+    .site-branding {
+      justify-self: start;
+    }
+
+    .site-logo {
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 0.25em;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .site-nav {
+      justify-self: center;
+    }
+
+    .site-nav__list {
+      display: flex;
+      gap: 32px;
+      list-style: none;
+      font-size: 14px;
+    }
+
+    .site-nav__list a {
+      color: inherit;
+      text-decoration: none;
+      transition: opacity 0.15s ease;
+    }
+
+    .site-nav__list a:hover {
+      opacity: 0.5;
+    }
+
+    .header-actions {
+      display: flex;
+      justify-self: end;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .header-action {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: inherit;
+      text-decoration: none;
+      background: none;
+      border: 0;
+      cursor: pointer;
+      transition: opacity 0.15s ease;
+    }
+
+    .header-action:hover {
+      opacity: 0.5;
+    }
+
+    .header-action--language {
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+    }
+
+    .header-action svg {
+      display: block;
+      width: 22px;
+      height: 22px;
+    }
+
+    .mobile-menu-toggle {
+      display: none;
+      width: 34px;
+      height: 34px;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .mobile-menu-toggle span {
+      display: block;
+      width: 20px;
+      height: 2px;
+      background: currentColor;
+      transition: transform 0.2s ease;
+    }
+
+    /* Demo: hero + dark variant */
+    .demo-hero {
+      min-height: 100vh;
+      padding: 140px 48px 60px;
+      background: #fff;
+    }
+
+    .demo-hero h1 {
+      font-size: clamp(72px, 12vw, 180px);
+      line-height: 0.88;
+      letter-spacing: -0.08em;
+      max-width: 900px;
+    }
+
+    .demo-dark {
+      position: relative;
+      min-height: 60vh;
+      padding: 120px 48px;
+      color: #fff;
+      background:
+        linear-gradient(rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.45)),
+        url("https://images.unsplash.com/photo-1447933601403-0c6688de566e?w=1600&q=80") center / cover no-repeat;
+    }
+
+    .demo-dark .site-header {
+      background: transparent;
+      color: #fff;
+    }
+
+    .note {
+      padding: 24px 48px 48px;
+      font-size: 13px;
+      color: #666;
+      border-top: 1px solid #eee;
+    }
+
+    @media (max-width: 900px) {
+      .site-header {
+        padding: 20px 16px;
+      }
+
+      .site-header__inner {
+        grid-template-columns: 1fr auto;
+      }
+
+      .site-nav {
+        position: fixed;
+        top: 72px;
+        right: 0;
+        left: 0;
+        bottom: 0;
+        padding: 28px 20px;
+        background: #fff;
+        visibility: hidden;
+        transform: translateX(100%);
+        transition: transform 0.24s ease, visibility 0.24s ease;
+      }
+
+      body.mobile-nav-open {
+        overflow: hidden;
+      }
+
+      body.mobile-nav-open .site-nav {
+        visibility: visible;
+        transform: translateX(0);
+      }
+
+      .site-nav__list {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 22px;
+        font-size: 18px;
+      }
+
+      .header-actions {
+        gap: 14px;
+      }
+
+      .mobile-menu-toggle {
+        display: inline-flex;
+      }
+
+      body.mobile-nav-open .mobile-menu-toggle span:first-child {
+        transform: translateY(3.5px) rotate(45deg);
+      }
+
+      body.mobile-nav-open .mobile-menu-toggle span:last-child {
+        transform: translateY(-3.5px) rotate(-45deg);
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Variant A: white header (main Voitkus) -->
+  <header class="site-header">
+    <div class="site-header__inner">
+      <div class="site-branding">
+        <a class="site-logo" href="#">VOITKUS</a>
+      </div>
+
+      <nav id="site-nav" class="site-nav" aria-label="Primary">
+        <ul class="site-nav__list">
+          <li><a href="#">Kawa</a></li>
+          <li><a href="#">O nas</a></li>
+          <li><a href="#">Parzenie</a></li>
+          <li><a href="#">Kontakt</a></li>
+        </ul>
+      </nav>
+
+      <div class="header-actions">
+        <a class="header-action header-action--language" href="#" aria-label="Język">PL</a>
+        <a class="header-action" href="#" aria-label="Konto">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <circle cx="12" cy="8" r="4"/>
+            <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+          </svg>
+        </a>
+        <a class="header-action" href="#" aria-label="Koszyk">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <path d="M6 6h15l-1.5 9h-12L6 6z"/>
+            <path d="M6 6L5 3H2"/>
+            <circle cx="9" cy="20" r="1"/>
+            <circle cx="18" cy="20" r="1"/>
+          </svg>
+        </a>
+        <button
+          class="mobile-menu-toggle"
+          type="button"
+          aria-controls="site-nav"
+          aria-expanded="false"
+          aria-label="Menu"
+        >
+          <span></span>
+          <span></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <section class="demo-hero">
+    <h1>Roasted<br>for curious<br>people.</h1>
+  </section>
+
+  <!-- Variant B: transparent on dark hero (like Lumora ref) -->
+  <section class="demo-dark">
+    <header class="site-header">
+      <div class="site-header__inner">
+        <div class="site-branding">
+          <a class="site-logo" href="#">VOITKUS</a>
+        </div>
+        <nav class="site-nav" aria-hidden="true">
+          <ul class="site-nav__list">
+            <li><a href="#">Kawa</a></li>
+            <li><a href="#">O nas</a></li>
+            <li><a href="#">Parzenie</a></li>
+            <li><a href="#">Kontakt</a></li>
+          </ul>
+        </nav>
+        <div class="header-actions">
+          <a class="header-action header-action--language" href="#">PL</a>
+          <a class="header-action" href="#" aria-label="Konto">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+          </a>
+          <a class="header-action" href="#" aria-label="Koszyk">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 6h15l-1.5 9h-12L6 6z"/><path d="M6 6L5 3H2"/><circle cx="9" cy="20" r="1"/><circle cx="18" cy="20" r="1"/></svg>
+          </a>
+        </div>
+      </div>
+    </header>
+    <p style="font-size:14px;opacity:.7">Transparent header on dark hero</p>
+  </section>
+
+  <p class="note">
+    Layout: <strong>logo left · nav center · PL + account + cart right</strong> (grid 1fr auto 1fr).
+    Open this file in browser: <code>prototype/header-layout.html</code>
+  </p>
+
+  <script>
+    (function () {
+      const toggle = document.querySelector('.mobile-menu-toggle');
+      const nav = document.getElementById('site-nav');
+      if (!toggle || !nav) return;
+      toggle.addEventListener('click', function () {
+        const open = !document.body.classList.contains('mobile-nav-open');
+        document.body.classList.toggle('mobile-nav-open', open);
+        toggle.setAttribute('aria-expanded', open);
+      });
+      nav.querySelectorAll('a').forEach(function (a) {
+        a.addEventListener('click', function () {
+          document.body.classList.remove('mobile-nav-open');
+          toggle.setAttribute('aria-expanded', 'false');
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

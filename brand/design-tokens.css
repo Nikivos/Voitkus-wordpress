@@ -1,0 +1,72 @@
+/**
+ * Voitkus Coffee Roastery — design tokens (источник в репо)
+ *
+ * На сайт не подключается напрямую.
+ * Рабочая копия для WordPress: voitkus/assets/design-tokens.css
+ * (подключается в functions.php перед style.css)
+ */
+
+:root {
+  /* Brand base */
+  --voitkus-black: #0a0a0a;
+  --voitkus-white: #ffffff;
+  --voitkus-gray: #8a8a8a;
+  --voitkus-gray-dark: #1a1a1a;
+
+  /* Lot accents (packaging) */
+  --lot-cyan: #00e5ff;
+  --lot-magenta: #ff2d9a;
+  --lot-lime: #b8f500;
+  --lot-peach: #ffcba8;
+  --lot-yellow: #ffe600;
+  --lot-orange: #ff6a00;
+
+  /* Active lot — переопределяется на single-product */
+  --lot-accent: var(--lot-orange);
+
+  /* Typography */
+  --font-display: "DM Sans", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+
+  /* Spacing */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 2rem;
+  --space-xl: 4rem;
+
+  /* UI */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --header-height: 64px;
+
+  /* Site grid (gutters from prototypes; no max-width container in brand) */
+  --grid-gutter: 48px;
+  --grid-gutter-md: 24px;
+  --grid-gutter-sm: 16px;
+  --grid-gutter-xs: 12px;
+  --container-max-width: 1440px;
+  --content-wide: 900px;
+  --content-text: 420px;
+  --breakpoint-lg: 900px;
+  --breakpoint-sm: 520px;
+}
+
+/* Пример: карточка товара в каталоге */
+.product-card {
+  background: var(--voitkus-black);
+  color: var(--voitkus-white);
+  border-left: 4px solid var(--lot-accent);
+}
+
+/* Пример: кнопка CTA на странице лота */
+.single-product .button {
+  background: var(--lot-accent);
+  color: var(--voitkus-black);
+}
+
+/* Data attributes для лотов (HTML)
+   <article data-lot-accent="#FF6A00"> */
+[data-lot-accent] {
+  --lot-accent: attr(data-lot-accent color, #ff6a00);
+}
