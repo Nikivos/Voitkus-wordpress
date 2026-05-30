@@ -23,4 +23,6 @@ get_template_part('template-parts/home/lots', null, [
 
 get_template_part('template-parts/home/why');
 
+get_template_part('template-parts/home/grind');
+
 get_footer();

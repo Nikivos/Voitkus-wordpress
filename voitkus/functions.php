@@ -135,6 +135,7 @@ function voitkus_customize_register(WP_Customize_Manager $wp_customize): void
     );
 
     voitkus_customize_register_why($wp_customize);
+    voitkus_customize_register_grind($wp_customize);
 }
 add_action('customize_register', 'voitkus_customize_register');
 
@@ -363,6 +364,120 @@ function voitkus_customize_register_why(WP_Customize_Manager $wp_customize): voi
         $wp_customize->add_control("voitkus_why_pillar_{$n}_accent", [
             'label'   => $label . ' — ' . __('kolor akcentu', 'voitkus'),
             'section' => 'voitkus_why',
+            'type'    => 'select',
+            'choices' => voitkus_why_lot_accents(),
+        ]);
+    }
+}
+
+/**
+ * @return array<string, mixed>
+ */
+function voitkus_grind_defaults(): array
+{
+    return [
+        'eyebrow'          => 'Świeżość i przygotowanie',
+        'title'            => 'Mielimy pod Twój sposób parzenia',
+        'intro'            => 'Ziarno lub mielenie dopasowane do metody — bez zgadywania w sklepie.',
+        'freshness_title'  => 'Data palenia na każdej paczce',
+        'freshness_text'   => 'Wiesz dokładnie, kiedy kawa opuściła palarnię — świeżość, której możesz zaufać.',
+        'methods'          => [
+            ['slug' => 'v60', 'label' => 'V60', 'accent' => 'cyan'],
+            ['slug' => 'aeropress', 'label' => 'AeroPress', 'accent' => 'magenta'],
+            ['slug' => 'espresso', 'label' => 'Espresso', 'accent' => 'orange'],
+            ['slug' => 'french-press', 'label' => 'French press', 'accent' => 'yellow'],
+            ['slug' => 'beans', 'label' => 'Ziarno', 'accent' => 'lime'],
+        ],
+    ];
+}
+
+/**
+ * @return array{eyebrow: string, title: string, intro: string, freshness_title: string, freshness_text: string, methods: array<int, array{slug: string, label: string, accent: string}>}
+ */
+function voitkus_grind_section(): array
+{
+    $defaults = voitkus_grind_defaults();
+    $methods  = [];
+
+    foreach ($defaults['methods'] as $index => $default_method) {
+        $n = $index + 1;
+
+        $methods[] = [
+            'slug'   => $default_method['slug'],
+            'label'  => (string) get_theme_mod("voitkus_grind_method_{$n}_label", $default_method['label']),
+            'accent' => voitkus_sanitize_why_accent(get_theme_mod("voitkus_grind_method_{$n}_accent", $default_method['accent'])),
+        ];
+    }
+
+    return [
+        'eyebrow'         => (string) get_theme_mod('voitkus_grind_eyebrow', $defaults['eyebrow']),
+        'title'           => (string) get_theme_mod('voitkus_grind_title', $defaults['title']),
+        'intro'           => (string) get_theme_mod('voitkus_grind_intro', $defaults['intro']),
+        'freshness_title' => (string) get_theme_mod('voitkus_grind_freshness_title', $defaults['freshness_title']),
+        'freshness_text'  => (string) get_theme_mod('voitkus_grind_freshness_text', $defaults['freshness_text']),
+        'methods'         => $methods,
+    ];
+}
+
+function voitkus_customize_register_grind(WP_Customize_Manager $wp_customize): void
+{
+    $defaults = voitkus_grind_defaults();
+
+    $wp_customize->add_section('voitkus_grind', [
+        'title'    => __('Mielenie i świeżość', 'voitkus'),
+        'priority' => 32,
+    ]);
+
+    $text_fields = [
+        'voitkus_grind_eyebrow'         => [__('Eyebrow', 'voitkus'), $defaults['eyebrow']],
+        'voitkus_grind_title'           => [__('Nagłówek sekcji', 'voitkus'), $defaults['title']],
+        'voitkus_grind_intro'           => [__('Tekst wprowadzający', 'voitkus'), $defaults['intro']],
+        'voitkus_grind_freshness_title' => [__('Świeżość — tytuł', 'voitkus'), $defaults['freshness_title']],
+        'voitkus_grind_freshness_text'  => [__('Świeżość — tekst', 'voitkus'), $defaults['freshness_text']],
+    ];
+
+    foreach ($text_fields as $setting_id => [$label, $default]) {
+        $is_textarea = str_contains($setting_id, '_text') || str_contains($setting_id, '_intro');
+
+        $wp_customize->add_setting($setting_id, [
+            'default'           => $default,
+            'sanitize_callback' => $is_textarea ? 'sanitize_textarea_field' : 'sanitize_text_field',
+        ]);
+
+        $wp_customize->add_control($setting_id, [
+            'label'   => $label,
+            'section' => 'voitkus_grind',
+            'type'    => $is_textarea ? 'textarea' : 'text',
+        ]);
+    }
+
+    foreach ($defaults['methods'] as $index => $method) {
+        $n     = $index + 1;
+        $label = sprintf(
+            /* translators: %d: brew method slot number (1–5) */
+            __('Metoda %d', 'voitkus'),
+            $n
+        );
+
+        $wp_customize->add_setting("voitkus_grind_method_{$n}_label", [
+            'default'           => $method['label'],
+            'sanitize_callback' => 'sanitize_text_field',
+        ]);
+
+        $wp_customize->add_control("voitkus_grind_method_{$n}_label", [
+            'label'   => $label . ' — ' . __('nazwa', 'voitkus'),
+            'section' => 'voitkus_grind',
+            'type'    => 'text',
+        ]);
+
+        $wp_customize->add_setting("voitkus_grind_method_{$n}_accent", [
+            'default'           => $method['accent'],
+            'sanitize_callback' => 'voitkus_sanitize_why_accent',
+        ]);
+
+        $wp_customize->add_control("voitkus_grind_method_{$n}_accent", [
+            'label'   => $label . ' — ' . __('kolor akcentu', 'voitkus'),
+            'section' => 'voitkus_grind',
             'type'    => 'select',
             'choices' => voitkus_why_lot_accents(),
         ]);
