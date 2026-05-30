@@ -133,6 +133,8 @@ function voitkus_customize_register(WP_Customize_Manager $wp_customize): void
             ]
         )
     );
+
+    voitkus_customize_register_why($wp_customize);
 }
 add_action('customize_register', 'voitkus_customize_register');
 
@@ -211,4 +213,158 @@ function voitkus_hero_bag_image(): array
         'width'     => $size[0] ?? $fallback['width'],
         'height'    => $size[1] ?? $fallback['height'],
     ];
+}
+
+/**
+ * @return array<string, mixed>
+ */
+function voitkus_why_defaults(): array
+{
+    return [
+        'eyebrow' => 'Czym się wyróżniamy',
+        'title'   => 'Dlaczego Voitkus',
+        'pillars' => [
+            [
+                'slug'   => 'terroir',
+                'title'  => 'Terytorium',
+                'text'   => 'Palimy tak, żeby w filiżance było widać pochodzenie — czysty, wyrazisty profil.',
+                'accent' => 'orange',
+            ],
+            [
+                'slug'   => 'control',
+                'title'  => 'Kontrola',
+                'text'   => 'Jakość przechodzi przez palarnię: od profilu po finalną filiżankę.',
+                'accent' => 'yellow',
+            ],
+            [
+                'slug'   => 'grind',
+                'title'  => 'Pod Ciebie',
+                'text'   => 'Ziarno lub mielenie pod V60, AeroPress, espresso i inne metody.',
+                'accent' => 'cyan',
+            ],
+        ],
+    ];
+}
+
+/**
+ * @return array<string, string>
+ */
+function voitkus_why_lot_accents(): array
+{
+    return [
+        'yellow'  => __('Żółty', 'voitkus'),
+        'orange'  => __('Pomarańczowy', 'voitkus'),
+        'magenta' => __('Magenta', 'voitkus'),
+        'cyan'    => __('Cyjan', 'voitkus'),
+        'lime'    => __('Limonka', 'voitkus'),
+    ];
+}
+
+function voitkus_sanitize_why_accent($value): string
+{
+    $allowed = array_keys(voitkus_why_lot_accents());
+    $value   = is_string($value) ? $value : '';
+
+    return in_array($value, $allowed, true) ? $value : 'yellow';
+}
+
+/**
+ * @return array{eyebrow: string, title: string, pillars: array<int, array{slug: string, title: string, text: string, accent: string}>}
+ */
+function voitkus_why_section(): array
+{
+    $defaults = voitkus_why_defaults();
+    $pillars  = [];
+
+    foreach ($defaults['pillars'] as $index => $default_pillar) {
+        $n = $index + 1;
+
+        $pillars[] = [
+            'slug'   => $default_pillar['slug'],
+            'title'  => (string) get_theme_mod("voitkus_why_pillar_{$n}_title", $default_pillar['title']),
+            'text'   => (string) get_theme_mod("voitkus_why_pillar_{$n}_text", $default_pillar['text']),
+            'accent' => voitkus_sanitize_why_accent(get_theme_mod("voitkus_why_pillar_{$n}_accent", $default_pillar['accent'])),
+        ];
+    }
+
+    return [
+        'eyebrow' => (string) get_theme_mod('voitkus_why_eyebrow', $defaults['eyebrow']),
+        'title'   => (string) get_theme_mod('voitkus_why_title', $defaults['title']),
+        'pillars' => $pillars,
+    ];
+}
+
+function voitkus_customize_register_why(WP_Customize_Manager $wp_customize): void
+{
+    $defaults = voitkus_why_defaults();
+
+    $wp_customize->add_section('voitkus_why', [
+        'title'    => __('Dlaczego Voitkus', 'voitkus'),
+        'priority' => 31,
+    ]);
+
+    $wp_customize->add_setting('voitkus_why_eyebrow', [
+        'default'           => $defaults['eyebrow'],
+        'sanitize_callback' => 'sanitize_text_field',
+    ]);
+
+    $wp_customize->add_control('voitkus_why_eyebrow', [
+        'label'   => __('Eyebrow', 'voitkus'),
+        'section' => 'voitkus_why',
+        'type'    => 'text',
+    ]);
+
+    $wp_customize->add_setting('voitkus_why_title', [
+        'default'           => $defaults['title'],
+        'sanitize_callback' => 'sanitize_text_field',
+    ]);
+
+    $wp_customize->add_control('voitkus_why_title', [
+        'label'   => __('Nagłówek sekcji', 'voitkus'),
+        'section' => 'voitkus_why',
+        'type'    => 'text',
+    ]);
+
+    foreach ($defaults['pillars'] as $index => $pillar) {
+        $n     = $index + 1;
+        $label = sprintf(
+            /* translators: %d: pillar column number (1–3) */
+            __('Kolumna %d', 'voitkus'),
+            $n
+        );
+
+        $wp_customize->add_setting("voitkus_why_pillar_{$n}_title", [
+            'default'           => $pillar['title'],
+            'sanitize_callback' => 'sanitize_text_field',
+        ]);
+
+        $wp_customize->add_control("voitkus_why_pillar_{$n}_title", [
+            'label'   => $label . ' — ' . __('tytuł', 'voitkus'),
+            'section' => 'voitkus_why',
+            'type'    => 'text',
+        ]);
+
+        $wp_customize->add_setting("voitkus_why_pillar_{$n}_text", [
+            'default'           => $pillar['text'],
+            'sanitize_callback' => 'sanitize_textarea_field',
+        ]);
+
+        $wp_customize->add_control("voitkus_why_pillar_{$n}_text", [
+            'label'   => $label . ' — ' . __('tekst', 'voitkus'),
+            'section' => 'voitkus_why',
+            'type'    => 'textarea',
+        ]);
+
+        $wp_customize->add_setting("voitkus_why_pillar_{$n}_accent", [
+            'default'           => $pillar['accent'],
+            'sanitize_callback' => 'voitkus_sanitize_why_accent',
+        ]);
+
+        $wp_customize->add_control("voitkus_why_pillar_{$n}_accent", [
+            'label'   => $label . ' — ' . __('kolor akcentu', 'voitkus'),
+            'section' => 'voitkus_why',
+            'type'    => 'select',
+            'choices' => voitkus_why_lot_accents(),
+        ]);
+    }
 }

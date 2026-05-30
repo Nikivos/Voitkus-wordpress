@@ -21,4 +21,6 @@ get_template_part('template-parts/home/lots', null, [
     'lots' => voitkus_current_lots(3),
 ]);
 
+get_template_part('template-parts/home/why');
+
 get_footer();
