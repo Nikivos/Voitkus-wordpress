@@ -149,6 +149,7 @@ function voitkus_customize_register(WP_Customize_Manager $wp_customize): void
     voitkus_customize_register_grind($wp_customize);
     voitkus_customize_register_founder($wp_customize);
     voitkus_customize_register_reviews($wp_customize);
+    voitkus_customize_register_footer($wp_customize);
 }
 add_action('customize_register', 'voitkus_customize_register');
 
@@ -764,6 +765,99 @@ function voitkus_customize_register_reviews(WP_Customize_Manager $wp_customize):
             'section' => 'voitkus_reviews',
             'type'    => 'select',
             'choices' => voitkus_why_lot_accents(),
+        ]);
+    }
+}
+
+/**
+ * @return array<int, array{title: string, links: array<int, array{label: string, url: string}>}>
+ */
+function voitkus_footer_link_groups(): array
+{
+    return [
+        [
+            'title' => __('Sklep', 'voitkus'),
+            'links' => [
+                ['label' => __('Kawa', 'voitkus'), 'url' => home_url('/shop/')],
+                ['label' => __('Koszyk', 'voitkus'), 'url' => voitkus_cart_url()],
+                ['label' => __('Konto', 'voitkus'), 'url' => voitkus_account_url()],
+            ],
+        ],
+        [
+            'title' => 'Voitkus',
+            'links' => [
+                ['label' => __('O nas', 'voitkus'), 'url' => home_url('/about/')],
+                ['label' => __('B2B', 'voitkus'), 'url' => home_url('/b2b/')],
+                ['label' => __('Kontakt', 'voitkus'), 'url' => home_url('/contact/')],
+                ['label' => __('Parzenie', 'voitkus'), 'url' => home_url('/brew-guides/')],
+            ],
+        ],
+        [
+            'title' => __('Informacje', 'voitkus'),
+            'links' => [
+                ['label' => __('Dostawa i płatność', 'voitkus'), 'url' => home_url('/legal/shipping/')],
+                ['label' => __('Regulamin', 'voitkus'), 'url' => home_url('/legal/terms/')],
+                ['label' => __('RODO', 'voitkus'), 'url' => home_url('/legal/privacy/')],
+            ],
+        ],
+    ];
+}
+
+/**
+ * @return array{tagline: string, instagram: string, email: string}
+ */
+function voitkus_footer_defaults(): array
+{
+    return [
+        'tagline'   => 'Świeża palarnia · Warszawa · Małe partie',
+        'instagram' => 'https://instagram.com/voitkuscoffee',
+        'email'     => 'hello@voitkuscoffee.com',
+    ];
+}
+
+/**
+ * @return array{tagline: string, instagram: string, email: string, year: int, link_groups: array<int, array{title: string, links: array<int, array{label: string, url: string}>}>}
+ */
+function voitkus_footer_section(): array
+{
+    $defaults = voitkus_footer_defaults();
+
+    return [
+        'tagline'     => (string) get_theme_mod('voitkus_footer_tagline', $defaults['tagline']),
+        'instagram'   => esc_url((string) get_theme_mod('voitkus_footer_instagram', $defaults['instagram'])),
+        'email'       => sanitize_email((string) get_theme_mod('voitkus_footer_email', $defaults['email'])),
+        'year'        => (int) gmdate('Y'),
+        'link_groups' => voitkus_footer_link_groups(),
+    ];
+}
+
+function voitkus_customize_register_footer(WP_Customize_Manager $wp_customize): void
+{
+    $defaults = voitkus_footer_defaults();
+
+    $wp_customize->add_section('voitkus_footer', [
+        'title'    => __('Footer', 'voitkus'),
+        'priority' => 35,
+    ]);
+
+    $fields = [
+        'voitkus_footer_tagline'   => [__('Tagline', 'voitkus'), $defaults['tagline'], 'text'],
+        'voitkus_footer_instagram' => [__('Instagram URL', 'voitkus'), $defaults['instagram'], 'url'],
+        'voitkus_footer_email'     => [__('Email', 'voitkus'), $defaults['email'], 'email'],
+    ];
+
+    foreach ($fields as $key => $field) {
+        $sanitize = $field[2] === 'email' ? 'sanitize_email' : ($field[2] === 'url' ? 'esc_url_raw' : 'sanitize_text_field');
+
+        $wp_customize->add_setting($key, [
+            'default'           => $field[1],
+            'sanitize_callback' => $sanitize,
+        ]);
+
+        $wp_customize->add_control($key, [
+            'label'   => $field[0],
+            'section' => 'voitkus_footer',
+            'type'    => $field[2] === 'url' ? 'url' : 'text',
         ]);
     }
 }
