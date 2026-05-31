@@ -84,6 +84,34 @@ function voitkus_render_custom_shop(): void
 }
 add_action('template_redirect', 'voitkus_render_custom_shop', 5);
 
+/**
+ * Wymusza własną kartę produktu zamiast domyślnego WooCommerce.
+ */
+function voitkus_render_custom_single_product(): void
+{
+    if (is_admin() || ! function_exists('is_product')) {
+        return;
+    }
+
+    if (! is_product()) {
+        return;
+    }
+
+    $template = get_template_directory() . '/woocommerce/single-product.php';
+
+    if (! is_readable($template)) {
+        return;
+    }
+
+    get_header();
+    echo '<main class="woocommerce-page">';
+    wc_get_template('single-product.php');
+    echo '</main>';
+    get_footer();
+    exit;
+}
+add_action('template_redirect', 'voitkus_render_custom_single_product', 5);
+
 function voitkus_enqueue_assets(): void
 {
     $tokens_path = get_stylesheet_directory() . '/assets/design-tokens.css';
@@ -112,6 +140,18 @@ function voitkus_enqueue_assets(): void
         file_exists($script_path) ? (string) filemtime($script_path) : wp_get_theme()->get('Version'),
         true
     );
+
+    if (function_exists('is_product') && is_product()) {
+        $product_script_path = get_stylesheet_directory() . '/assets/product.js';
+
+        wp_enqueue_script(
+            'voitkus-product',
+            get_stylesheet_directory_uri() . '/assets/product.js',
+            [],
+            file_exists($product_script_path) ? (string) filemtime($product_script_path) : wp_get_theme()->get('Version'),
+            true
+        );
+    }
 }
 add_action('wp_enqueue_scripts', 'voitkus_enqueue_assets');
 

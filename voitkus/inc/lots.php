@@ -364,6 +364,74 @@ function voitkus_shop_lots(): array
 }
 
 /**
+ * @return array<int, int>
+ */
+function voitkus_product_gallery_ids(WC_Product $product): array
+{
+    $ids  = [];
+    $main = (int) $product->get_image_id();
+
+    if ($main > 0) {
+        $ids[] = $main;
+    }
+
+    foreach ($product->get_gallery_image_ids() as $attachment_id) {
+        $attachment_id = (int) $attachment_id;
+
+        if ($attachment_id > 0 && ! in_array($attachment_id, $ids, true)) {
+            $ids[] = $attachment_id;
+        }
+    }
+
+    return $ids;
+}
+
+/**
+ * @return array<int, array{url:string,image_html:string,origin:string,title:string,price_html:string,hook:string,specs:array<string,string>,notes:array<int,string>,badge:string,brew_badges:array<int,array{slug:string,label:string}>,accent:string,accent_css:string,add_to_cart:string}>
+ */
+function voitkus_related_lots(WC_Product $product, int $limit = 3): array
+{
+    if (! function_exists('wc_get_products')) {
+        return [];
+    }
+
+    $exclude = [$product->get_id()];
+    $ids     = function_exists('wc_get_related_products')
+        ? wc_get_related_products($product->get_id(), $limit, $exclude)
+        : [];
+
+    $products = [];
+
+    foreach ($ids as $id) {
+        $related = wc_get_product((int) $id);
+
+        if ($related instanceof WC_Product && $related->is_visible()) {
+            $products[] = $related;
+        }
+    }
+
+    if ($products === []) {
+        $products = wc_get_products([
+            'status'  => 'publish',
+            'limit'   => $limit + 1,
+            'orderby' => 'date',
+            'order'   => 'DESC',
+            'exclude' => $exclude,
+        ]);
+    }
+
+    $lots = [];
+
+    foreach (array_slice($products, 0, $limit) as $index => $related) {
+        if ($related instanceof WC_Product) {
+            $lots[] = voitkus_build_lot_from_product($related, $index);
+        }
+    }
+
+    return $lots;
+}
+
+/**
  * Nasze kawy: ostatnie produkty WooCommerce, z fallbackiem statycznym.
  *
  * @return array<int, array{url:string,image_html:string,origin:string,title:string,price_html:string,hook:string,specs:array<string,string>,notes:array<int,string>,badge:string,accent:string,accent_css:string,add_to_cart:string}>
