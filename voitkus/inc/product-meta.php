@@ -75,17 +75,38 @@ function voitkus_product_meta_fields(): array
 
 function voitkus_register_product_meta(): void
 {
+    if (! post_type_exists('product')) {
+        return;
+    }
+
     foreach (voitkus_product_meta_fields() as $key => $field) {
         register_post_meta('product', $key, [
             'type'              => 'string',
             'single'            => true,
             'show_in_rest'      => true,
-            'auth_callback'     => static fn (): bool => current_user_can('edit_products'),
+            'auth_callback'     => 'voitkus_can_edit_products',
             'sanitize_callback' => $field['type'] === 'textarea' ? 'sanitize_textarea_field' : 'sanitize_text_field',
         ]);
     }
 }
 add_action('init', 'voitkus_register_product_meta');
+
+function voitkus_can_edit_products(): bool
+{
+    return current_user_can('edit_products');
+}
+
+function voitkus_product_meta_bootstrap(): void
+{
+    if (! class_exists('WooCommerce')) {
+        return;
+    }
+
+    add_filter('woocommerce_product_data_tabs', 'voitkus_product_data_tab');
+    add_action('woocommerce_product_data_panels', 'voitkus_product_data_panel');
+    add_action('woocommerce_process_product_meta', 'voitkus_save_product_meta');
+}
+add_action('plugins_loaded', 'voitkus_product_meta_bootstrap');
 
 function voitkus_product_data_tab(array $tabs): array
 {
@@ -98,7 +119,6 @@ function voitkus_product_data_tab(array $tabs): array
 
     return $tabs;
 }
-add_filter('woocommerce_product_data_tabs', 'voitkus_product_data_tab');
 
 function voitkus_product_data_panel(): void
 {
@@ -128,7 +148,6 @@ function voitkus_product_data_panel(): void
     echo '</div>';
     echo '</div>';
 }
-add_action('woocommerce_product_data_panels', 'voitkus_product_data_panel');
 
 /**
  * @param array{label: string, description: string, type: string, rows?: int, placeholder?: string} $field
@@ -177,4 +196,3 @@ function voitkus_save_product_meta(int $post_id): void
         update_post_meta($post_id, $key, $value);
     }
 }
-add_action('woocommerce_process_product_meta', 'voitkus_save_product_meta');

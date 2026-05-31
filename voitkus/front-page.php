@@ -27,4 +27,8 @@ get_template_part('template-parts/home/lots', null, [
 
 get_template_part('template-parts/home/grind');
 
+get_template_part('template-parts/home/founder');
+
+get_template_part('template-parts/home/reviews');
+
 get_footer();

@@ -9,8 +9,18 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
-require_once get_template_directory() . '/inc/lots.php';
-require_once get_template_directory() . '/inc/product-meta.php';
+$voitkus_includes = [
+    '/inc/lots.php',
+    '/inc/product-meta.php',
+];
+
+foreach ($voitkus_includes as $relative) {
+    $path = get_template_directory() . $relative;
+
+    if (is_readable($path)) {
+        require_once $path;
+    }
+}
 
 function voitkus_setup(): void
 {
@@ -137,6 +147,8 @@ function voitkus_customize_register(WP_Customize_Manager $wp_customize): void
 
     voitkus_customize_register_why($wp_customize);
     voitkus_customize_register_grind($wp_customize);
+    voitkus_customize_register_founder($wp_customize);
+    voitkus_customize_register_reviews($wp_customize);
 }
 add_action('customize_register', 'voitkus_customize_register');
 
@@ -479,6 +491,277 @@ function voitkus_customize_register_grind(WP_Customize_Manager $wp_customize): v
         $wp_customize->add_control("voitkus_grind_method_{$n}_accent", [
             'label'   => $label . ' — ' . __('kolor akcentu', 'voitkus'),
             'section' => 'voitkus_grind',
+            'type'    => 'select',
+            'choices' => voitkus_why_lot_accents(),
+        ]);
+    }
+}
+
+/**
+ * @return array<string, string>
+ */
+function voitkus_founder_defaults(): array
+{
+    return [
+        'eyebrow'     => 'Za palarnią',
+        'name'        => 'Cześć, jestem Mikita',
+        'role'        => 'Założyciel · Voitkus Coffee Roastery · Warszawa',
+        'text_1'      => 'Voitkus zaczął się od prostego pytania: dlaczego kawa nie może smakować tak wyraziście i ciekawie jak dobre wino? Z domowego parzenia przeszedłem do małych partii i pracy z ziarnem, w którym słychać pochodzenie.',
+        'text_2'      => 'Dziś palimy w Warszawie — każdy lot z własnym profilem i kontrolą jakości w palarni. Nie gonimy za modą. Pomagamy odkrywać smak — od codziennej filiżanki po odważne, ograniczone loty.',
+        'quote'       => 'Palimy tak, żeby w filiżance było widać pochodzenie — czysty, wyrazisty profil.',
+        'link_label'  => 'Poznaj historię',
+        'link_url'    => '/about/',
+    ];
+}
+
+/**
+ * @return array{eyebrow: string, name: string, role: string, text_1: string, text_2: string, quote: string, link_label: string, link_url: string, image: array{has_image: bool, url: string, width: int, height: int}}
+ */
+function voitkus_founder_section(): array
+{
+    $defaults = voitkus_founder_defaults();
+    $link_url = (string) get_theme_mod('voitkus_founder_link_url', $defaults['link_url']);
+
+    if ($link_url !== '' && strpos($link_url, 'http') !== 0) {
+        $link_url = home_url($link_url);
+    }
+
+    return [
+        'eyebrow'    => (string) get_theme_mod('voitkus_founder_eyebrow', $defaults['eyebrow']),
+        'name'       => (string) get_theme_mod('voitkus_founder_name', $defaults['name']),
+        'role'       => (string) get_theme_mod('voitkus_founder_role', $defaults['role']),
+        'text_1'     => (string) get_theme_mod('voitkus_founder_text_1', $defaults['text_1']),
+        'text_2'     => (string) get_theme_mod('voitkus_founder_text_2', $defaults['text_2']),
+        'quote'      => (string) get_theme_mod('voitkus_founder_quote', $defaults['quote']),
+        'link_label' => (string) get_theme_mod('voitkus_founder_link_label', $defaults['link_label']),
+        'link_url'   => esc_url($link_url),
+        'image'      => voitkus_founder_image(),
+    ];
+}
+
+/**
+ * @return array{has_image: bool, url: string, width: int, height: int}
+ */
+function voitkus_founder_image(): array
+{
+    $fallback = [
+        'has_image' => false,
+        'url'       => '',
+        'width'     => 480,
+        'height'    => 600,
+    ];
+
+    $stored = get_theme_mod('voitkus_founder_image', '');
+
+    if (is_numeric($stored)) {
+        $stored = wp_get_attachment_url((int) $stored) ?: '';
+    }
+
+    $url = esc_url_raw((string) $stored);
+
+    if ($url === '') {
+        return $fallback;
+    }
+
+    $attachment_id = attachment_url_to_postid($url);
+    $image         = $attachment_id > 0 ? wp_get_attachment_image_src($attachment_id, 'large') : false;
+
+    if ($image) {
+        return [
+            'has_image' => true,
+            'url'       => $image[0],
+            'width'     => (int) $image[1],
+            'height'    => (int) $image[2],
+        ];
+    }
+
+    return [
+        'has_image' => true,
+        'url'       => $url,
+        'width'     => $fallback['width'],
+        'height'    => $fallback['height'],
+    ];
+}
+
+function voitkus_customize_register_founder(WP_Customize_Manager $wp_customize): void
+{
+    $defaults = voitkus_founder_defaults();
+
+    $wp_customize->add_section('voitkus_founder', [
+        'title'    => __('Założyciel (strona główna)', 'voitkus'),
+        'priority' => 33,
+    ]);
+
+    $wp_customize->add_setting('voitkus_founder_image', [
+        'default'           => '',
+        'sanitize_callback' => 'voitkus_sanitize_hero_bag_image',
+    ]);
+
+    $wp_customize->add_control(
+        new WP_Customize_Image_Control(
+            $wp_customize,
+            'voitkus_founder_image',
+            [
+                'label'       => __('Zdjęcie założyciela', 'voitkus'),
+                'description' => __('Portret w pionie — najlepiej 3:4.', 'voitkus'),
+                'section'     => 'voitkus_founder',
+                'settings'    => 'voitkus_founder_image',
+            ]
+        )
+    );
+
+    $text_fields = [
+        'voitkus_founder_eyebrow'    => [__('Eyebrow', 'voitkus'), $defaults['eyebrow']],
+        'voitkus_founder_name'       => [__('Nagłówek', 'voitkus'), $defaults['name']],
+        'voitkus_founder_role'       => [__('Rola / podpis', 'voitkus'), $defaults['role']],
+        'voitkus_founder_text_1'     => [__('Akapit 1', 'voitkus'), $defaults['text_1']],
+        'voitkus_founder_text_2'     => [__('Akapit 2', 'voitkus'), $defaults['text_2']],
+        'voitkus_founder_quote'      => [__('Cytat', 'voitkus'), $defaults['quote']],
+        'voitkus_founder_link_label' => [__('Link — etykieta', 'voitkus'), $defaults['link_label']],
+        'voitkus_founder_link_url'   => [__('Link — URL (np. /about/)', 'voitkus'), $defaults['link_url']],
+    ];
+
+    foreach ($text_fields as $key => $field) {
+        $label   = $field[0];
+        $default = $field[1];
+        $type    = (strpos($key, '_text_') !== false || $key === 'voitkus_founder_quote')
+            ? 'textarea'
+            : 'text';
+
+        $wp_customize->add_setting($key, [
+            'default'           => $default,
+            'sanitize_callback' => $type === 'textarea' ? 'sanitize_textarea_field' : 'sanitize_text_field',
+        ]);
+
+        $wp_customize->add_control($key, [
+            'label'   => $label,
+            'section' => 'voitkus_founder',
+            'type'    => $type,
+        ]);
+    }
+}
+
+/**
+ * @return array{eyebrow: string, title: string, items: array<int, array{quote: string, author: string, accent: string}>}
+ */
+function voitkus_reviews_defaults(): array
+{
+    return [
+        'eyebrow' => 'Opinie',
+        'title'   => 'Co mówią klienci',
+        'items'   => [
+            [
+                'quote'  => 'Pierwsza Etiopia która smakowała jak jagody.',
+                'author' => 'Klient Voitkus',
+                'accent' => 'magenta',
+            ],
+            [
+                'quote'  => 'Najlepsze espresso jakie zrobiłem w domu.',
+                'author' => 'Klient Voitkus',
+                'accent' => 'orange',
+            ],
+            [
+                'quote'  => 'Świetnie opisane profile.',
+                'author' => 'Klient Voitkus',
+                'accent' => 'cyan',
+            ],
+        ],
+    ];
+}
+
+function voitkus_reviews_section(): array
+{
+    $defaults = voitkus_reviews_defaults();
+    $items    = [];
+
+    foreach ($defaults['items'] as $index => $default_item) {
+        $n = $index + 1;
+
+        $quote = trim((string) get_theme_mod("voitkus_review_{$n}_quote", $default_item['quote']));
+
+        if ($quote === '') {
+            continue;
+        }
+
+        $items[] = [
+            'quote'  => $quote,
+            'author' => trim((string) get_theme_mod("voitkus_review_{$n}_author", $default_item['author'])),
+            'accent' => voitkus_sanitize_why_accent(get_theme_mod("voitkus_review_{$n}_accent", $default_item['accent'])),
+        ];
+    }
+
+    return [
+        'eyebrow' => (string) get_theme_mod('voitkus_reviews_eyebrow', $defaults['eyebrow']),
+        'title'   => (string) get_theme_mod('voitkus_reviews_title', $defaults['title']),
+        'items'   => $items,
+    ];
+}
+
+function voitkus_customize_register_reviews(WP_Customize_Manager $wp_customize): void
+{
+    $defaults = voitkus_reviews_defaults();
+
+    $wp_customize->add_section('voitkus_reviews', [
+        'title'    => __('Opinie klientów (strona główna)', 'voitkus'),
+        'priority' => 34,
+    ]);
+
+    $header_fields = [
+        'voitkus_reviews_eyebrow' => [__('Eyebrow', 'voitkus'), $defaults['eyebrow']],
+        'voitkus_reviews_title'   => [__('Nagłówek sekcji', 'voitkus'), $defaults['title']],
+    ];
+
+    foreach ($header_fields as $key => $field) {
+        $wp_customize->add_setting($key, [
+            'default'           => $field[1],
+            'sanitize_callback' => 'sanitize_text_field',
+        ]);
+
+        $wp_customize->add_control($key, [
+            'label'   => $field[0],
+            'section' => 'voitkus_reviews',
+            'type'    => 'text',
+        ]);
+    }
+
+    foreach ($defaults['items'] as $index => $item) {
+        $n     = $index + 1;
+        $label = sprintf(
+            /* translators: %d: review number (1–3) */
+            __('Opinia %d', 'voitkus'),
+            $n
+        );
+
+        $wp_customize->add_setting("voitkus_review_{$n}_quote", [
+            'default'           => $item['quote'],
+            'sanitize_callback' => 'sanitize_textarea_field',
+        ]);
+
+        $wp_customize->add_control("voitkus_review_{$n}_quote", [
+            'label'   => $label . ' — ' . __('cytat', 'voitkus'),
+            'section' => 'voitkus_reviews',
+            'type'    => 'textarea',
+        ]);
+
+        $wp_customize->add_setting("voitkus_review_{$n}_author", [
+            'default'           => $item['author'],
+            'sanitize_callback' => 'sanitize_text_field',
+        ]);
+
+        $wp_customize->add_control("voitkus_review_{$n}_author", [
+            'label'   => $label . ' — ' . __('autor', 'voitkus'),
+            'section' => 'voitkus_reviews',
+            'type'    => 'text',
+        ]);
+
+        $wp_customize->add_setting("voitkus_review_{$n}_accent", [
+            'default'           => $item['accent'],
+            'sanitize_callback' => 'voitkus_sanitize_why_accent',
+        ]);
+
+        $wp_customize->add_control("voitkus_review_{$n}_accent", [
+            'label'   => $label . ' — ' . __('kolor akcentu', 'voitkus'),
+            'section' => 'voitkus_reviews',
             'type'    => 'select',
             'choices' => voitkus_why_lot_accents(),
         ]);
