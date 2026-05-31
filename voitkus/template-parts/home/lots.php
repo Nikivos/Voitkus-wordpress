@@ -1,6 +1,6 @@
 <?php
 /**
- * Front page — Aktualne loty.
+ * Front page — Nasze kawy.
  *
  * @package Voitkus
  * @var array<int, array<string, mixed>> $args['lots']
@@ -21,7 +21,7 @@ if (empty($lots)) {
     <div class="lots__inner">
         <header class="lots__header">
             <div class="lots__heading">
-                <h2 id="lots-title" class="lots__title"><?php esc_html_e('Aktualne loty', 'voitkus'); ?></h2>
+                <h2 id="lots-title" class="lots__title"><?php esc_html_e('Nasze kawy', 'voitkus'); ?></h2>
             </div>
             <a href="<?php echo esc_url(home_url('/shop/')); ?>" class="lots__link"><?php esc_html_e('Zobacz wszystkie', 'voitkus'); ?></a>
         </header>

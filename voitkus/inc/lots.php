@@ -1,6 +1,6 @@
 <?php
 /**
- * Loty — odczyt pól produktu i dane dla sekcji «Aktualne loty».
+ * Loty — odczyt pól produktu i dane dla sekcji «Nasze kawy».
  *
  * @package Voitkus
  */
@@ -152,7 +152,7 @@ function voitkus_lot_price_html(WC_Product $product): string
 }
 
 /**
- * Aktualne loty: ostatnie produkty WooCommerce, z fallbackiem statycznym.
+ * Nasze kawy: ostatnie produkty WooCommerce, z fallbackiem statycznym.
  *
  * @return array<int, array{url:string,image_html:string,origin:string,title:string,price_html:string,hook:string,specs:array<string,string>,notes:array<int,string>,badge:string,accent:string,accent_css:string,add_to_cart:string}>
  */

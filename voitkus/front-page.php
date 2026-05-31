@@ -17,11 +17,13 @@ get_template_part('template-parts/home/hero', null, [
 
 get_template_part('template-parts/home/profiles');
 
+get_template_part('template-parts/home/why');
+
+get_template_part('template-parts/home/wine');
+
 get_template_part('template-parts/home/lots', null, [
     'lots' => voitkus_current_lots(3),
 ]);
-
-get_template_part('template-parts/home/why');
 
 get_template_part('template-parts/home/grind');
 

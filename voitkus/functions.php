@@ -10,6 +10,7 @@ if (! defined('ABSPATH')) {
 }
 
 require_once get_template_directory() . '/inc/lots.php';
+require_once get_template_directory() . '/inc/product-meta.php';
 
 function voitkus_setup(): void
 {
