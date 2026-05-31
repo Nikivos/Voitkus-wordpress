@@ -23,6 +23,15 @@ Text Domain: voitkus
   /* Переопределения темы поверх брендбука */
   --font-display: "Helvetica Neue", Arial, sans-serif;
   --font-body: "Inter Tight", "Helvetica Neue", Arial, sans-serif;
+
+  /* Vertical rhythm — odstęp między sekcjami */
+  --section-pad: 80px;
+  --page-offset: 112px;
+  --footer-pad-bottom: 48px;
+  --hero-offset: 128px;
+  --hero-pad-bottom: 120px;
+  --shop-offset: 72px;
+  --shop-pad-bottom: 40px;
 }
 
 * {
@@ -38,6 +47,37 @@ body {
   background: var(--voitkus-white);
   color: var(--voitkus-black);
   font-family: var(--font-body);
+}
+
+/* Jednolity odstęp między sekcjami */
+.profiles,
+.lots,
+.why,
+.wine,
+.grind,
+.founder,
+.reviews {
+  padding-block: var(--section-pad);
+}
+
+@media (max-width: 900px) {
+  :root {
+    --section-pad: 64px;
+    --page-offset: calc(var(--header-mobile-h) + env(safe-area-inset-top, 0px) + 24px);
+    --footer-pad-bottom: 32px;
+    --hero-offset: calc(var(--header-mobile-h) + env(safe-area-inset-top, 0px) + 40px);
+    --hero-pad-bottom: 88px;
+    --shop-offset: calc(var(--header-mobile-h) + env(safe-area-inset-top, 0px) + 12px);
+    --shop-pad-bottom: 32px;
+  }
+}
+
+@media (max-width: 520px) {
+  :root {
+    --section-pad: 56px;
+    --hero-pad-bottom: 72px;
+    --shop-offset: calc(var(--header-mobile-h) + env(safe-area-inset-top, 0px) + 8px);
+  }
 }
 
 a {
@@ -246,7 +286,7 @@ a {
   display: flex;
   align-items: center;
   min-height: auto;
-  padding: 160px var(--grid-gutter) 80px;
+  padding: var(--hero-offset) var(--grid-gutter) var(--hero-pad-bottom);
 }
 
 .hero__main {
@@ -365,7 +405,6 @@ a {
    ========================================================================== */
 
 .profiles {
-  padding: 80px 0 64px;
   border-top: 1px solid rgba(10, 10, 10, 0.06);
 }
 
@@ -877,8 +916,7 @@ a {
   .hero {
     align-items: flex-start;
     min-height: auto;
-    padding: calc(var(--header-mobile-h) + env(safe-area-inset-top, 0px) + 64px) var(--grid-gutter-md)
-      max(40px, env(safe-area-inset-bottom, 0px));
+    padding: var(--hero-offset) var(--grid-gutter-md) max(var(--hero-pad-bottom), env(safe-area-inset-bottom, 0px));
   }
 
   .hero__main {
@@ -929,10 +967,6 @@ a {
     width: 100%;
     min-height: min(200px, 32vh);
     max-height: min(280px, 38vh);
-  }
-
-  .profiles {
-    padding: 56px 0 48px;
   }
 
   .profiles__inner {
@@ -993,7 +1027,7 @@ a {
   }
 
   .hero {
-    padding-top: calc(var(--header-mobile-h) + env(safe-area-inset-top, 0px) + 48px);
+    padding-top: var(--hero-offset);
   }
 
   .hero__main {
@@ -1018,10 +1052,6 @@ a {
     max-height: min(220px, 34vh);
   }
 
-  .profiles {
-    padding: 48px 0 40px;
-  }
-
   .profiles__header {
     padding: 0 var(--grid-gutter-xs);
   }
@@ -1037,7 +1067,6 @@ a {
    ========================================================================== */
 
 .lots {
-  padding: 72px 0 96px;
   background: var(--voitkus-white);
   color: var(--voitkus-black);
 }
@@ -1173,6 +1202,30 @@ a {
   height: 6px;
   border-radius: 50%;
   background: var(--lot-accent);
+}
+
+.lot-card__brew-badges {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: calc(100% - 28px);
+}
+
+.lot-card__brew-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 12px;
+  background: var(--lot-accent);
+  color: var(--voitkus-black);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border-radius: 999px;
 }
 
 .lot-card__image {
@@ -1419,10 +1472,6 @@ a {
 }
 
 @media (max-width: 900px) {
-  .lots {
-    padding: 56px 0 72px;
-  }
-
   .lots__inner {
     padding: 0 var(--grid-gutter-md);
   }
@@ -1437,10 +1486,6 @@ a {
 }
 
 @media (max-width: 520px) {
-  .lots {
-    padding: 48px 0 72px;
-  }
-
   .lots__inner {
     padding: 0 var(--grid-gutter-xs);
   }
@@ -1466,7 +1511,6 @@ a {
 
 /* Why Voitkus — 3 pillars */
 .why {
-  padding: 72px 0 96px;
   border-top: 1px solid rgba(10, 10, 10, 0.06);
   background: var(--voitkus-white);
   color: var(--voitkus-black);
@@ -1542,10 +1586,6 @@ a {
 }
 
 @media (max-width: 900px) {
-  .why {
-    padding: 56px 0 72px;
-  }
-
   .why__inner {
     padding: 0 var(--grid-gutter-md);
   }
@@ -1557,10 +1597,6 @@ a {
 }
 
 @media (max-width: 600px) {
-  .why {
-    padding: 48px 0 64px;
-  }
-
   .why__inner {
     padding: 0 var(--grid-gutter-xs);
   }
@@ -1572,7 +1608,6 @@ a {
 
 /* Wine comparison */
 .wine {
-  padding: 96px 0 112px;
   border-top: 1px solid rgba(10, 10, 10, 0.06);
   background: var(--voitkus-white);
   color: var(--voitkus-black);
@@ -1749,10 +1784,6 @@ a {
 }
 
 @media (max-width: 900px) {
-  .wine {
-    padding: 72px 0 88px;
-  }
-
   .wine__inner {
     padding: 0 var(--grid-gutter-md);
   }
@@ -1768,10 +1799,6 @@ a {
 }
 
 @media (max-width: 600px) {
-  .wine {
-    padding: 56px 0 72px;
-  }
-
   .wine__inner {
     padding: 0 var(--grid-gutter-xs);
   }
@@ -1814,7 +1841,6 @@ a {
 
 /* Grind & freshness */
 .grind {
-  padding: 72px 0 96px;
   border-top: 1px solid rgba(10, 10, 10, 0.06);
   background: var(--voitkus-white);
   color: var(--voitkus-black);
@@ -1930,10 +1956,6 @@ a {
 }
 
 @media (max-width: 900px) {
-  .grind {
-    padding: 56px 0 72px;
-  }
-
   .grind__inner {
     padding: 0 var(--grid-gutter-md);
   }
@@ -1945,10 +1967,6 @@ a {
 }
 
 @media (max-width: 600px) {
-  .grind {
-    padding: 48px 0 64px;
-  }
-
   .grind__inner {
     padding: 0 var(--grid-gutter-xs);
   }
@@ -1965,7 +1983,6 @@ a {
 
 /* Founder */
 .founder {
-  padding: 88px 0 104px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   background: var(--voitkus-black);
   color: var(--voitkus-white);
@@ -2097,10 +2114,6 @@ a {
 }
 
 @media (max-width: 900px) {
-  .founder {
-    padding: 72px 0 88px;
-  }
-
   .founder__inner {
     padding: 0 var(--grid-gutter-md);
   }
@@ -2117,10 +2130,6 @@ a {
 }
 
 @media (max-width: 600px) {
-  .founder {
-    padding: 56px 0 72px;
-  }
-
   .founder__inner {
     padding: 0 var(--grid-gutter-xs);
   }
@@ -2140,7 +2149,6 @@ a {
 
 /* Reviews */
 .reviews {
-  padding: 88px 0 104px;
   border-top: 1px solid rgba(10, 10, 10, 0.06);
   background: var(--voitkus-cream);
   color: var(--voitkus-black);
@@ -2231,10 +2239,6 @@ a {
 }
 
 @media (max-width: 900px) {
-  .reviews {
-    padding: 72px 0 88px;
-  }
-
   .reviews__inner {
     padding: 0 var(--grid-gutter-md);
   }
@@ -2246,10 +2250,6 @@ a {
 }
 
 @media (max-width: 600px) {
-  .reviews {
-    padding: 56px 0 72px;
-  }
-
   .reviews__inner {
     padding: 0 var(--grid-gutter-xs);
   }
@@ -2269,7 +2269,8 @@ a {
 
 /* Site footer */
 .site-footer {
-  padding: 72px 0 40px;
+  padding-top: var(--section-pad);
+  padding-bottom: var(--footer-pad-bottom);
   background: var(--voitkus-black);
   color: var(--voitkus-white);
   border-top: 1px solid rgba(255, 255, 255, 0.08);
@@ -2391,10 +2392,6 @@ a {
 }
 
 @media (max-width: 900px) {
-  .site-footer {
-    padding: 56px 0 32px;
-  }
-
   .site-footer__inner {
     padding: 0 var(--grid-gutter-md);
   }
@@ -2427,5 +2424,136 @@ a {
   .site-footer__nav {
     grid-template-columns: 1fr;
     gap: 28px;
+  }
+}
+
+/* Shop page */
+.woocommerce-page {
+  padding-top: var(--shop-offset);
+  padding-bottom: var(--shop-pad-bottom);
+}
+
+.shop-page.lots {
+  padding: 0;
+}
+
+.shop-page__header {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 28px;
+  margin-bottom: 48px;
+}
+
+.shop-page__intro {
+  max-width: 36rem;
+}
+
+.shop-page__eyebrow {
+  margin: 0 0 12px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--voitkus-gray);
+}
+
+.shop-page__title {
+  font-family: var(--font-display);
+  font-size: clamp(32px, 4vw, 48px);
+  letter-spacing: -0.03em;
+}
+
+.shop-page__lead {
+  margin: 16px 0 0;
+  max-width: 32rem;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--voitkus-gray-dark);
+}
+
+.shop-page__filter-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.shop-filter {
+  --shop-filter-accent: var(--lot-yellow);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 16px;
+  border: 1px solid rgba(10, 10, 10, 0.1);
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: inherit;
+  background: var(--voitkus-white);
+  transition:
+    background 200ms ease,
+    border-color 200ms ease,
+    color 200ms ease;
+}
+
+.shop-filter[data-lot-accent="orange"] { --shop-filter-accent: var(--lot-orange); }
+.shop-filter[data-lot-accent="magenta"] { --shop-filter-accent: var(--lot-magenta); }
+.shop-filter[data-lot-accent="cyan"] { --shop-filter-accent: var(--lot-cyan); }
+.shop-filter[data-lot-accent="lime"] { --shop-filter-accent: var(--lot-lime); }
+
+.shop-filter__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--shop-filter-accent);
+}
+
+.shop-filter:hover,
+.shop-filter.is-active {
+  border-color: var(--shop-filter-accent);
+  background: var(--voitkus-black);
+  color: var(--voitkus-white);
+}
+
+.shop-page__grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.shop-page__empty {
+  padding: 48px 0 24px;
+  text-align: center;
+}
+
+.shop-page__empty p {
+  margin: 0 0 20px;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--voitkus-gray-dark);
+}
+
+.shop-page__empty-link {
+  display: inline-block;
+  padding: 14px 24px;
+  border-radius: 999px;
+  background: var(--voitkus-black);
+  color: var(--voitkus-white);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+@media (max-width: 900px) {
+  .shop-page__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 32px 20px;
+  }
+}
+
+@media (max-width: 600px) {
+  .shop-page__grid {
+    grid-template-columns: 1fr;
+    gap: 32px;
   }
 }

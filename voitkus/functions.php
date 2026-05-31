@@ -41,6 +41,49 @@ function voitkus_setup(): void
 }
 add_action('after_setup_theme', 'voitkus_setup');
 
+function voitkus_woocommerce_setup(): void
+{
+    if (! class_exists('WooCommerce')) {
+        return;
+    }
+
+    add_filter('woocommerce_enqueue_styles', '__return_empty_array');
+    add_filter('woocommerce_show_page_title', '__return_false');
+    add_filter('woocommerce_has_block_template', '__return_false');
+
+    remove_action('woocommerce_before_shop_loop', 'woocommerce_result_count', 20);
+    remove_action('woocommerce_before_shop_loop', 'woocommerce_catalog_ordering', 30);
+}
+add_action('after_setup_theme', 'voitkus_woocommerce_setup', 20);
+
+/**
+ * Wymusza własny katalog zamiast domyślnej pętli WooCommerce / bloków.
+ */
+function voitkus_render_custom_shop(): void
+{
+    if (is_admin() || ! function_exists('is_shop')) {
+        return;
+    }
+
+    if (! is_shop()) {
+        return;
+    }
+
+    $template = get_template_directory() . '/woocommerce/archive-product.php';
+
+    if (! is_readable($template)) {
+        return;
+    }
+
+    get_header();
+    echo '<main class="woocommerce-page">';
+    wc_get_template('archive-product.php');
+    echo '</main>';
+    get_footer();
+    exit;
+}
+add_action('template_redirect', 'voitkus_render_custom_shop', 5);
+
 function voitkus_enqueue_assets(): void
 {
     $tokens_path = get_stylesheet_directory() . '/assets/design-tokens.css';

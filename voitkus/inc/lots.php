@@ -152,6 +152,218 @@ function voitkus_lot_price_html(WC_Product $product): string
 }
 
 /**
+ * Badge parzenia na karcie (Espresso, Filter, Omni) z pola Palenie.
+ *
+ * @return array<int, array{slug: string, label: string}>
+ */
+function voitkus_lot_brew_badges(string $roast_level): array
+{
+    if ($roast_level === '') {
+        return [];
+    }
+
+    $map = [
+        'espresso' => __('Espresso', 'voitkus'),
+        'filter'   => __('Filter', 'voitkus'),
+        'omni'     => __('Omni', 'voitkus'),
+    ];
+
+    $parts  = preg_split('/[\s\/|,]+/', strtolower($roast_level)) ?: [];
+    $badges = [];
+    $seen   = [];
+
+    foreach ($parts as $part) {
+        $part = trim($part);
+
+        if ($part === '' || ! isset($map[$part]) || isset($seen[$part])) {
+            continue;
+        }
+
+        $seen[$part] = true;
+        $badges[]    = [
+            'slug'  => $part,
+            'label' => $map[$part],
+        ];
+    }
+
+    return $badges;
+}
+
+/**
+ * @return array{url:string,image_html:string,origin:string,title:string,price_html:string,hook:string,specs:array<string,string>,notes:array<int,string>,badge:string,brew_badges:array<int,array{slug:string,label:string}>,accent:string,accent_css:string,add_to_cart:string}
+ */
+function voitkus_build_lot_from_product(WC_Product $product, int $index): array
+{
+    $lot_id = voitkus_lot_product_id($product);
+    $field  = static fn (string $key): string => voitkus_lot_field($lot_id, $key, $product);
+
+    $origin = $field('voitkus_origin');
+
+    if ($origin === '') {
+        $terms = get_the_terms($lot_id, 'product_cat');
+
+        if (is_array($terms) && ! empty($terms)) {
+            $skip  = ['uncategorized', 'misc', 'bez-kategorii'];
+            $names = [];
+
+            foreach ($terms as $term) {
+                if (in_array($term->slug, $skip, true)) {
+                    continue;
+                }
+                $names[] = $term->name;
+            }
+
+            $origin = implode(' · ', array_slice($names, 0, 2));
+        }
+    }
+
+    $badge   = '';
+    $created = $product->get_date_created();
+
+    if ($product->is_featured()) {
+        $badge = __('Bestseller', 'voitkus');
+    } elseif ($created instanceof WC_DateTime && $created->getTimestamp() > strtotime('-30 days')) {
+        $badge = __('Nowość', 'voitkus');
+    }
+
+    $roast_level = $field('voitkus_roast_level');
+    $brew_badges = voitkus_lot_brew_badges($roast_level);
+
+    $spec_map = [
+        __('Proces', 'voitkus')  => 'voitkus_process',
+        __('Region', 'voitkus')  => 'voitkus_region',
+        __('Odmiana', 'voitkus') => 'voitkus_variety',
+        __('Palenie', 'voitkus') => 'voitkus_roast_level',
+        __('Waga', 'voitkus')    => 'voitkus_weight',
+    ];
+
+    $specs = [];
+    foreach ($spec_map as $label => $meta_key) {
+        if ($meta_key === 'voitkus_roast_level' && $brew_badges !== []) {
+            continue;
+        }
+
+        $value = $field($meta_key);
+        if ($value !== '') {
+            $specs[$label] = $value;
+        }
+    }
+
+    $notes = voitkus_lot_parse_list($field('voitkus_flavor_notes'));
+
+    $hook = $field('voitkus_hook');
+    if ($hook === '') {
+        $hook = wp_strip_all_tags($product->get_short_description());
+    }
+    if ($hook !== '') {
+        $hook = wp_trim_words($hook, 14, '…');
+    }
+
+    $color      = voitkus_lot_label_color($field('voitkus_label_color'));
+    $accent     = $color['accent'] !== '' ? $color['accent'] : voitkus_lot_accent($index);
+    $accent_css = $color['accent_css'];
+
+    return [
+        'url'         => (string) get_permalink($product->get_id()),
+        'image_html'  => $product->get_image('large', ['class' => 'lot-card__img']),
+        'origin'      => $origin,
+        'title'       => $product->get_name(),
+        'price_html'  => voitkus_lot_price_html($product),
+        'hook'        => $hook,
+        'specs'       => $specs,
+        'notes'       => $notes,
+        'badge'       => $badge,
+        'brew_badges' => $brew_badges,
+        'accent'      => $accent,
+        'accent_css'  => $accent_css,
+        'add_to_cart' => method_exists($product, 'add_to_cart_url') ? $product->add_to_cart_url() : '',
+    ];
+}
+
+/**
+ * @return array<int, array{slug: string, label: string, accent: string}>
+ */
+function voitkus_shop_filters(): array
+{
+    return [
+        ['slug' => '', 'label' => __('Wszystkie', 'voitkus'), 'accent' => 'yellow'],
+        ['slug' => 'everyday', 'label' => __('Balans', 'voitkus'), 'accent' => 'yellow'],
+        ['slug' => 'espresso', 'label' => __('Terroir', 'voitkus'), 'accent' => 'orange'],
+        ['slug' => 'funky', 'label' => __('Ekspresja', 'voitkus'), 'accent' => 'magenta'],
+        ['slug' => 'cyan', 'label' => __('Detal', 'voitkus'), 'accent' => 'cyan'],
+        ['slug' => 'limited', 'label' => __('Mikrolot', 'voitkus'), 'accent' => 'lime'],
+    ];
+}
+
+function voitkus_shop_active_filter(): string
+{
+    if (! isset($_GET['filter'])) {
+        return '';
+    }
+
+    $filter = sanitize_key(wp_unslash((string) $_GET['filter']));
+
+    foreach (voitkus_shop_filters() as $item) {
+        if ($item['slug'] === $filter) {
+            return $filter;
+        }
+    }
+
+    return '';
+}
+
+/**
+ * @return array<string, mixed>
+ */
+function voitkus_shop_product_query_args(): array
+{
+    $args = [
+        'status'  => 'publish',
+        'limit'   => -1,
+        'orderby' => 'date',
+        'order'   => 'DESC',
+    ];
+
+    $filter = voitkus_shop_active_filter();
+
+    if ($filter === '') {
+        return $args;
+    }
+
+    if (taxonomy_exists('product_tag')) {
+        $args['tag'] = [$filter];
+    } elseif (taxonomy_exists('product_cat')) {
+        $args['category'] = [$filter];
+    }
+
+    return $args;
+}
+
+/**
+ * @return array<int, array{url:string,image_html:string,origin:string,title:string,price_html:string,hook:string,specs:array<string,string>,notes:array<int,string>,badge:string,accent:string,accent_css:string,add_to_cart:string}>
+ */
+function voitkus_shop_lots(): array
+{
+    if (! function_exists('wc_get_products')) {
+        return voitkus_fallback_lots();
+    }
+
+    $products = wc_get_products(voitkus_shop_product_query_args());
+
+    if ($products === []) {
+        return voitkus_shop_active_filter() === '' ? voitkus_fallback_lots() : [];
+    }
+
+    $lots = [];
+
+    foreach (array_values($products) as $index => $product) {
+        $lots[] = voitkus_build_lot_from_product($product, $index);
+    }
+
+    return $lots;
+}
+
+/**
  * Nasze kawy: ostatnie produkty WooCommerce, z fallbackiem statycznym.
  *
  * @return array<int, array{url:string,image_html:string,origin:string,title:string,price_html:string,hook:string,specs:array<string,string>,notes:array<int,string>,badge:string,accent:string,accent_css:string,add_to_cart:string}>
@@ -170,89 +382,14 @@ function voitkus_current_lots(int $limit = 3): array
             $lots = [];
 
             foreach (array_values($products) as $index => $product) {
-                $lot_id = voitkus_lot_product_id($product);
-                $field  = static fn (string $key): string => voitkus_lot_field($lot_id, $key, $product);
-
-                $origin = $field('voitkus_origin');
-
-                if ($origin === '') {
-                    $terms = get_the_terms($lot_id, 'product_cat');
-
-                    if (is_array($terms) && ! empty($terms)) {
-                        $skip  = ['uncategorized', 'misc', 'bez-kategorii'];
-                        $names = [];
-
-                        foreach ($terms as $term) {
-                            if (in_array($term->slug, $skip, true)) {
-                                continue;
-                            }
-                            $names[] = $term->name;
-                        }
-
-                        $origin = implode(' · ', array_slice($names, 0, 2));
-                    }
-                }
-
-                $badge   = '';
-                $created = $product->get_date_created();
-
-                if ($product->is_featured()) {
-                    $badge = __('Bestseller', 'voitkus');
-                } elseif ($created instanceof WC_DateTime && $created->getTimestamp() > strtotime('-30 days')) {
-                    $badge = __('Nowość', 'voitkus');
-                }
-
-                $spec_map = [
-                    __('Proces', 'voitkus')  => 'voitkus_process',
-                    __('Region', 'voitkus')  => 'voitkus_region',
-                    __('Odmiana', 'voitkus') => 'voitkus_variety',
-                    __('Palenie', 'voitkus') => 'voitkus_roast_level',
-                    __('Waga', 'voitkus')    => 'voitkus_weight',
-                ];
-
-                $specs = [];
-                foreach ($spec_map as $label => $meta_key) {
-                    $value = $field($meta_key);
-                    if ($value !== '') {
-                        $specs[$label] = $value;
-                    }
-                }
-
-                $notes = voitkus_lot_parse_list($field('voitkus_flavor_notes'));
-
-                $hook = $field('voitkus_hook');
-                if ($hook === '') {
-                    $hook = wp_strip_all_tags($product->get_short_description());
-                }
-                if ($hook !== '') {
-                    $hook = wp_trim_words($hook, 14, '…');
-                }
-
-                $color      = voitkus_lot_label_color($field('voitkus_label_color'));
-                $accent     = $color['accent'] !== '' ? $color['accent'] : voitkus_lot_accent($index);
-                $accent_css = $color['accent_css'];
-
-                $lots[] = [
-                    'url'         => (string) get_permalink($product->get_id()),
-                    'image_html'  => $product->get_image('large', ['class' => 'lot-card__img']),
-                    'origin'      => $origin,
-                    'title'       => $product->get_name(),
-                    'price_html'  => voitkus_lot_price_html($product),
-                    'hook'        => $hook,
-                    'specs'       => $specs,
-                    'notes'       => $notes,
-                    'badge'       => $badge,
-                    'accent'      => $accent,
-                    'accent_css'  => $accent_css,
-                    'add_to_cart' => method_exists($product, 'add_to_cart_url') ? $product->add_to_cart_url() : '',
-                ];
+                $lots[] = voitkus_build_lot_from_product($product, $index);
             }
 
             return $lots;
         }
     }
 
-    return voitkus_fallback_lots();
+    return array_slice(voitkus_fallback_lots(), 0, $limit);
 }
 
 /**
@@ -281,6 +418,7 @@ function voitkus_fallback_lots(): array
             ],
             'notes'       => [__('Herbata', 'voitkus'), __('Cytrusy', 'voitkus'), __('Kwiaty', 'voitkus')],
             'badge'       => __('Nowość', 'voitkus'),
+            'brew_badges' => voitkus_lot_brew_badges('Filter'),
             'accent'      => 'orange',
             'accent_css'  => '',
             'add_to_cart' => '',
@@ -301,6 +439,7 @@ function voitkus_fallback_lots(): array
             ],
             'notes'       => [__('Czekolada', 'voitkus'), __('Orzech', 'voitkus'), __('Czerwone owoce', 'voitkus')],
             'badge'       => '',
+            'brew_badges' => voitkus_lot_brew_badges('Omni'),
             'accent'      => 'yellow',
             'accent_css'  => '',
             'add_to_cart' => '',
@@ -321,6 +460,7 @@ function voitkus_fallback_lots(): array
             ],
             'notes'       => [__('Karmel', 'voitkus'), __('Orzech laskowy', 'voitkus'), __('Czekolada', 'voitkus')],
             'badge'       => __('Bestseller', 'voitkus'),
+            'brew_badges' => voitkus_lot_brew_badges('Espresso'),
             'accent'      => 'yellow',
             'accent_css'  => '',
             'add_to_cart' => '',
