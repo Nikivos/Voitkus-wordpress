@@ -113,6 +113,8 @@ $cart_count = voitkus_cart_count();
                 </svg>
                 <?php if ($cart_count > 0) : ?>
                     <span class="header-icon-btn__badge"><?php echo esc_html((string) $cart_count); ?></span>
+                <?php else : ?>
+                    <span class="header-icon-btn__badge" style="display: none;">0</span>
                 <?php endif; ?>
             </a>
         </div>

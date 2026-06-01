@@ -65,7 +65,7 @@ function voitkus_render_custom_shop(): void
         return;
     }
 
-    if (! is_shop()) {
+    if (! is_shop() || isset($_GET['wc-ajax'])) {
         return;
     }
 
@@ -93,7 +93,7 @@ function voitkus_render_custom_single_product(): void
         return;
     }
 
-    if (! is_product()) {
+    if (! is_product() || isset($_GET['wc-ajax'])) {
         return;
     }
 
@@ -111,6 +111,39 @@ function voitkus_render_custom_single_product(): void
     exit;
 }
 add_action('template_redirect', 'voitkus_render_custom_single_product', 5);
+
+/**
+ * Wymusza własny koszyk zamiast domyślnego WooCommerce (jeśli włączone są bloki).
+ */
+function voitkus_render_custom_cart(): void
+{
+    if (is_admin() || ! function_exists('is_cart')) {
+        return;
+    }
+
+    if (! is_cart() || isset($_GET['wc-ajax'])) {
+        return;
+    }
+
+    $template = get_template_directory() . '/woocommerce/cart/cart.php';
+
+    if (! is_readable($template)) {
+        return;
+    }
+
+    get_header();
+    echo '<main class="woocommerce-page page-main cart-page">';
+    echo '<div class="page-main__inner">';
+    echo '<header class="page-main__header"><h1 class="page-main__title">' . esc_html__('Koszyk', 'voitkus') . '</h1></header>';
+    echo '<div class="page-main__content">';
+    echo do_shortcode('[woocommerce_cart]');
+    echo '</div>';
+    echo '</div>';
+    echo '</main>';
+    get_footer();
+    exit;
+}
+add_action('template_redirect', 'voitkus_render_custom_cart', 5);
 
 function voitkus_enqueue_assets(): void
 {
@@ -141,19 +174,31 @@ function voitkus_enqueue_assets(): void
         true
     );
 
-    if (function_exists('is_product') && is_product()) {
+    if (function_exists('is_woocommerce') && (is_product() || is_cart() || is_checkout())) {
         $product_script_path = get_stylesheet_directory() . '/assets/product.js';
 
         wp_enqueue_script(
             'voitkus-product',
             get_stylesheet_directory_uri() . '/assets/product.js',
-            [],
+            ['jquery'],
             file_exists($product_script_path) ? (string) filemtime($product_script_path) : wp_get_theme()->get('Version'),
             true
         );
     }
 }
 add_action('wp_enqueue_scripts', 'voitkus_enqueue_assets');
+
+/**
+ * Wyłącza domyślne powiadomienie WooCommerce "Dodano do koszyka" przy dodawaniu przez AJAX.
+ */
+function voitkus_disable_add_to_cart_message($message, $products)
+{
+    if (wp_doing_ajax() || (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest')) {
+        return false;
+    }
+    return $message;
+}
+add_filter('wc_add_to_cart_message_html', 'voitkus_disable_add_to_cart_message', 10, 2);
 
 function voitkus_default_menu(): void
 {
@@ -202,6 +247,32 @@ function voitkus_cart_count(): int
 
     return 0;
 }
+
+function voitkus_cart_fragments(array $fragments): array
+{
+    $count = voitkus_cart_count();
+
+    ob_start();
+    ?>
+    <span class="cart-count"><?php echo esc_html((string) $count); ?></span>
+    <?php
+    $fragments['span.cart-count'] = ob_get_clean() ?: '';
+
+    ob_start();
+    if ($count > 0) {
+        ?>
+        <span class="header-icon-btn__badge"><?php echo esc_html((string) $count); ?></span>
+        <?php
+    } else {
+        ?>
+        <span class="header-icon-btn__badge" style="display: none;">0</span>
+        <?php
+    }
+    $fragments['span.header-icon-btn__badge'] = ob_get_clean() ?: '';
+
+    return $fragments;
+}
+add_filter('woocommerce_add_to_cart_fragments', 'voitkus_cart_fragments');
 
 function voitkus_customize_register(WP_Customize_Manager $wp_customize): void
 {
