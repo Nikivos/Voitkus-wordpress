@@ -2,8 +2,10 @@
 /**
  * Empty cart page
  *
- * @package Voitkus
- * @see     https://woo.com/document/template-structure/
+ * This template can be overridden by copying it to yourtheme/woocommerce/cart/cart-empty.php.
+ *
+ * @see     https://woocommerce.com/document/template-structure/
+ * @package WooCommerce\Templates
  * @version 7.0.1
  */
 

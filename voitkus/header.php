@@ -93,7 +93,11 @@ $cart_count = voitkus_cart_count();
             </a>
             <a class="header-action header-action--cart" href="<?php echo esc_url(voitkus_cart_url()); ?>">
                 <span class="header-action__label"><?php esc_html_e('Koszyk', 'voitkus'); ?></span>
-                <span class="cart-count"><?php echo esc_html((string) $cart_count); ?></span>
+                <?php if ($cart_count > 0) : ?>
+                    <span class="cart-count" data-voitkus-cart-count="desktop"><?php echo esc_html((string) $cart_count); ?></span>
+                <?php else : ?>
+                    <span class="cart-count" data-voitkus-cart-count="desktop" style="display: none;" aria-hidden="true">0</span>
+                <?php endif; ?>
             </a>
         </div>
 
@@ -112,9 +116,9 @@ $cart_count = voitkus_cart_count();
                     <circle cx="18" cy="20" r="1"/>
                 </svg>
                 <?php if ($cart_count > 0) : ?>
-                    <span class="header-icon-btn__badge"><?php echo esc_html((string) $cart_count); ?></span>
+                    <span class="header-icon-btn__badge" data-voitkus-cart-count="mobile"><?php echo esc_html((string) $cart_count); ?></span>
                 <?php else : ?>
-                    <span class="header-icon-btn__badge" style="display: none;">0</span>
+                    <span class="header-icon-btn__badge" data-voitkus-cart-count="mobile" style="display: none;" aria-hidden="true">0</span>
                 <?php endif; ?>
             </a>
         </div>

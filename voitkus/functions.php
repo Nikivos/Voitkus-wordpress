@@ -69,6 +69,10 @@ function voitkus_render_custom_shop(): void
         return;
     }
 
+    if (! defined('DONOTCACHEPAGE')) {
+        define('DONOTCACHEPAGE', true);
+    }
+
     $template = get_template_directory() . '/woocommerce/archive-product.php';
 
     if (! is_readable($template)) {
@@ -176,17 +180,72 @@ function voitkus_enqueue_assets(): void
 
     if (function_exists('is_woocommerce') && (is_product() || is_cart() || is_checkout())) {
         $product_script_path = get_stylesheet_directory() . '/assets/product.js';
+        $product_deps        = ['jquery', 'wc-cart-fragments'];
+
+        if (function_exists('is_cart') && is_cart()) {
+            wp_enqueue_script('wc-cart');
+            $product_deps[] = 'wc-cart';
+        }
+
+        if (is_product() || is_checkout()) {
+            wp_enqueue_script('wc-add-to-cart');
+            $product_deps[] = 'wc-add-to-cart';
+        }
+
+        if (is_product()) {
+            wp_enqueue_script('wc-cart-fragments');
+        }
 
         wp_enqueue_script(
             'voitkus-product',
             get_stylesheet_directory_uri() . '/assets/product.js',
-            ['jquery'],
+            $product_deps,
             file_exists($product_script_path) ? (string) filemtime($product_script_path) : wp_get_theme()->get('Version'),
             true
         );
     }
 }
-add_action('wp_enqueue_scripts', 'voitkus_enqueue_assets');
+add_action('wp_enqueue_scripts', 'voitkus_enqueue_assets', 20);
+
+/**
+ * Fragmenty koszyka na wszystkich stronach (w tym Kawa / shop) — domyślnie WC wyłącza poza koszykiem.
+ */
+add_filter('woocommerce_cart_fragments_enabled', static function (): bool {
+    return true;
+});
+
+/**
+ * Upewnia się, że sesja koszyka WooCommerce jest załadowana (ważne dla shop + wc-ajax).
+ */
+function voitkus_ensure_cart_loaded(): void
+{
+    if (is_admin() || ! function_exists('WC')) {
+        return;
+    }
+
+    if (null === WC()->cart && function_exists('wc_load_cart')) {
+        wc_load_cart();
+    }
+}
+add_action('woocommerce_init', 'voitkus_ensure_cart_loaded', 5);
+add_action('wc_ajax_get_refreshed_fragments', 'voitkus_ensure_cart_loaded', 1);
+add_action('wc_ajax_add_to_cart', 'voitkus_ensure_cart_loaded', 1);
+
+/**
+ * Po dodaniu do koszyka — zapis sesji przed zwróceniem fragmentów AJAX.
+ */
+function voitkus_persist_cart_session(): void
+{
+    if (! function_exists('WC') || ! WC()->cart || ! WC()->session) {
+        return;
+    }
+
+    WC()->session->set('cart', WC()->cart->get_cart_for_session());
+    WC()->session->set_customer_session_cookie(true);
+}
+add_action('woocommerce_add_to_cart', 'voitkus_persist_cart_session', 20);
+add_action('woocommerce_cart_item_removed', 'voitkus_persist_cart_session', 20);
+add_action('woocommerce_cart_item_restored', 'voitkus_persist_cart_session', 20);
 
 /**
  * Wyłącza domyślne powiadomienie WooCommerce "Dodano do koszyka" przy dodawaniu przez AJAX.
@@ -199,6 +258,67 @@ function voitkus_disable_add_to_cart_message($message, $products)
     return $message;
 }
 add_filter('wc_add_to_cart_message_html', 'voitkus_disable_add_to_cart_message', 10, 2);
+
+/**
+ * Czy komunikat to domyślne „koszyk zaktualizowany” WooCommerce.
+ */
+function voitkus_is_cart_updated_notice_message(string $message): bool
+{
+    $lower = mb_strtolower(wp_strip_all_tags($message));
+
+    $needles = [
+        'cart updated',
+        'cart has been updated',
+        'корзина обновлена',
+        'koszyk został zaktualizowany',
+        'koszyk zaktualizowany',
+        'koszyk odświeżony',
+        'koszyk odswiezony',
+    ];
+
+    foreach ($needles as $needle) {
+        if (str_contains($lower, $needle)) {
+            return true;
+        }
+    }
+
+    if (str_contains($lower, 'koszyk') && (str_contains($lower, 'zaktualiz') || str_contains($lower, 'odśwież') || str_contains($lower, 'odswiez'))) {
+        return true;
+    }
+
+    return false;
+}
+
+/**
+ * Ukrywa zielony pasek „Cart updated” na stronie koszyka (qty stepper / update).
+ * Kupon i błędy zostają.
+ */
+function voitkus_filter_cart_page_notices(array $notices): array
+{
+    if (! function_exists('is_cart') || ! is_cart()) {
+        return $notices;
+    }
+
+    foreach (['success', 'notice'] as $type) {
+        if (empty($notices[$type]) || ! is_array($notices[$type])) {
+            continue;
+        }
+
+        $notices[$type] = array_values(array_filter($notices[$type], static function ($notice): bool {
+            $message = '';
+            if (is_array($notice) && isset($notice['notice'])) {
+                $message = (string) $notice['notice'];
+            } elseif (is_string($notice)) {
+                $message = $notice;
+            }
+
+            return ! voitkus_is_cart_updated_notice_message($message);
+        }));
+    }
+
+    return $notices;
+}
+add_filter('woocommerce_get_notices', 'voitkus_filter_cart_page_notices', 99);
 
 function voitkus_default_menu(): void
 {
@@ -241,8 +361,14 @@ function voitkus_account_url(): string
 
 function voitkus_cart_count(): int
 {
-    if (function_exists('WC') && WC()->cart) {
-        return WC()->cart->get_cart_contents_count();
+    if (! function_exists('WC')) {
+        return 0;
+    }
+
+    voitkus_ensure_cart_loaded();
+
+    if (WC()->cart) {
+        return (int) WC()->cart->get_cart_contents_count();
     }
 
     return 0;
@@ -250,29 +376,42 @@ function voitkus_cart_count(): int
 
 function voitkus_cart_fragments(array $fragments): array
 {
-    $count = voitkus_cart_count();
+    voitkus_ensure_cart_loaded();
 
-    ob_start();
-    ?>
-    <span class="cart-count"><?php echo esc_html((string) $count); ?></span>
-    <?php
-    $fragments['span.cart-count'] = ob_get_clean() ?: '';
+    $count = voitkus_cart_count();
 
     ob_start();
     if ($count > 0) {
         ?>
-        <span class="header-icon-btn__badge"><?php echo esc_html((string) $count); ?></span>
+        <span class="cart-count" data-voitkus-cart-count="desktop"><?php echo esc_html((string) $count); ?></span>
         <?php
     } else {
         ?>
-        <span class="header-icon-btn__badge" style="display: none;">0</span>
+        <span class="cart-count" data-voitkus-cart-count="desktop" style="display: none;" aria-hidden="true">0</span>
         <?php
     }
-    $fragments['span.header-icon-btn__badge'] = ob_get_clean() ?: '';
+    $desktop_html = ob_get_clean() ?: '';
+    $fragments['[data-voitkus-cart-count="desktop"]'] = $desktop_html;
+    $fragments['.header-action--cart .cart-count']           = $desktop_html;
+
+    ob_start();
+    if ($count > 0) {
+        ?>
+        <span class="header-icon-btn__badge" data-voitkus-cart-count="mobile"><?php echo esc_html((string) $count); ?></span>
+        <?php
+    } else {
+        ?>
+        <span class="header-icon-btn__badge" data-voitkus-cart-count="mobile" style="display: none;" aria-hidden="true">0</span>
+        <?php
+    }
+    $mobile_html = ob_get_clean() ?: '';
+    $fragments['[data-voitkus-cart-count="mobile"]'] = $mobile_html;
+    $fragments['.header-icon-btn--cart .header-icon-btn__badge'] = $mobile_html;
 
     return $fragments;
 }
 add_filter('woocommerce_add_to_cart_fragments', 'voitkus_cart_fragments');
+add_filter('woocommerce_cart_fragments', 'voitkus_cart_fragments');
 
 function voitkus_customize_register(WP_Customize_Manager $wp_customize): void
 {

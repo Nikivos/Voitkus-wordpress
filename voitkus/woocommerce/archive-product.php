@@ -1,8 +1,12 @@
 <?php
 /**
- * Shop archive — Voitkus lot cards.
+ * The Template for displaying product archives, including the main shop page which is a post type archive
  *
- * @package Voitkus
+ * This template can be overridden by copying it to yourtheme/woocommerce/archive-product.php.
+ *
+ * @see     https://woocommerce.com/document/template-structure/
+ * @package WooCommerce\Templates
+ * @version 8.6.0
  */
 
 if (! defined('ABSPATH')) {
