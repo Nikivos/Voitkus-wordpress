@@ -36,7 +36,12 @@ do_action('woocommerce_before_cart'); ?>
 
                             <div class="cart-item__media">
                                 <?php
-                                $thumbnail = apply_filters('woocommerce_cart_item_thumbnail', $_product->get_image('woocommerce_thumbnail', ['class' => 'cart-item__img']), $cart_item, $cart_item_key);
+                                $thumbnail = apply_filters(
+                                    'woocommerce_cart_item_thumbnail',
+                                    voitkus_product_thumbnail_html($_product, 'cart-item__img'),
+                                    $cart_item,
+                                    $cart_item_key
+                                );
 
                                 if (! $product_permalink) {
                                     echo $thumbnail; // PHPCS: XSS ok.

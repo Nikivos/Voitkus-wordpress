@@ -53,8 +53,514 @@ function voitkus_woocommerce_setup(): void
 
     remove_action('woocommerce_before_shop_loop', 'woocommerce_result_count', 20);
     remove_action('woocommerce_before_shop_loop', 'woocommerce_catalog_ordering', 30);
+
+    // Sidebar koszyka: tylko podsumowanie (bez cross-sells).
+    remove_action('woocommerce_cart_collaterals', 'woocommerce_cross_sell_display', 10);
+
 }
 add_action('after_setup_theme', 'voitkus_woocommerce_setup', 20);
+
+/**
+ * Classic Cart/Checkout + kalkulator wysyłki zgodnie z wymaganiami WooCommerce (nie blocks).
+ */
+function voitkus_ensure_woocommerce_classic_store(): void
+{
+    if (! class_exists('WooCommerce')) {
+        return;
+    }
+
+    $theme_version = wp_get_theme()->get('Version') ?: '0';
+    $sync_flag     = 'voitkus_wc_classic_sync_v' . preg_replace('/[^a-z0-9._-]/i', '', $theme_version) . '_20250601';
+
+    if (get_option($sync_flag) === 'done') {
+        return;
+    }
+
+    if (get_option('woocommerce_enable_shipping_calc') !== 'yes') {
+        update_option('woocommerce_enable_shipping_calc', 'yes');
+    }
+
+    voitkus_convert_wc_page_to_shortcode('cart', '[woocommerce_cart]');
+    voitkus_convert_wc_page_to_shortcode('checkout', '[woocommerce_checkout]');
+    voitkus_disable_cart_checkout_blocks_feature();
+
+    update_option($sync_flag, 'done', false);
+}
+add_action('init', 'voitkus_ensure_woocommerce_classic_store', 5);
+add_action('after_switch_theme', 'voitkus_ensure_woocommerce_classic_store');
+
+function voitkus_convert_wc_page_to_shortcode(string $page_key, string $shortcode): void
+{
+    $page_id = wc_get_page_id($page_key);
+
+    if ($page_id <= 0) {
+        return;
+    }
+
+    $post = get_post($page_id);
+
+    if (! $post instanceof WP_Post) {
+        return;
+    }
+
+    $block_map = [
+        'cart'     => 'woocommerce/cart',
+        'checkout' => 'woocommerce/checkout',
+    ];
+    $shortcode_tag = 'woocommerce_' . $page_key;
+    $block_name    = $block_map[ $page_key ] ?? '';
+    $uses_block    = $block_name !== '' && function_exists('has_block') && has_block($block_name, $post);
+    $uses_shortcode = has_shortcode($post->post_content, $shortcode_tag);
+
+    if ($uses_block || ! $uses_shortcode) {
+        wp_update_post(
+            [
+                'ID'           => $post->ID,
+                'post_content' => $shortcode,
+            ]
+        );
+    }
+}
+
+function voitkus_disable_cart_checkout_blocks_feature(): void
+{
+    if (! function_exists('wc_get_container')) {
+        return;
+    }
+
+    try {
+        $container = wc_get_container();
+
+        if (! $container || ! is_object($container) || ! method_exists($container, 'get')) {
+            return;
+        }
+
+        $controller = $container->get(
+            \Automattic\WooCommerce\Internal\Features\FeaturesController::class
+        );
+
+        if ($controller && method_exists($controller, 'change_feature_enable')) {
+            $controller->change_feature_enable('cart_checkout_blocks', false);
+        }
+    } catch (Throwable $e) {
+        unset($e);
+    }
+}
+
+/**
+ * JS: kalkulator wysyłki, wybór metody, podświetlenie InPost.
+ */
+function voitkus_enqueue_checkout_helpers(): void
+{
+    if (! class_exists('WooCommerce')) {
+        return;
+    }
+
+    $path = get_stylesheet_directory() . '/assets/checkout.js';
+
+    if (! is_readable($path)) {
+        return;
+    }
+
+    $deps = ['jquery'];
+
+    if (function_exists('is_cart') && is_cart()) {
+        wp_enqueue_script('wc-cart');
+        $deps[] = 'wc-cart';
+    }
+
+    if (function_exists('is_checkout') && is_checkout() && (! function_exists('is_wc_endpoint_url') || ! is_wc_endpoint_url())) {
+        wp_enqueue_script('wc-checkout');
+        $deps[] = 'wc-checkout';
+    }
+
+    if (count($deps) === 1) {
+        return;
+    }
+
+    wp_enqueue_script(
+        'voitkus-checkout',
+        get_stylesheet_directory_uri() . '/assets/checkout.js',
+        array_values(array_unique($deps)),
+        (string) filemtime($path),
+        true
+    );
+}
+add_action('wp_enqueue_scripts', 'voitkus_enqueue_checkout_helpers', 25);
+
+/**
+ * Podpowiedź dla admina, gdy brak aktywnych bramek płatności (checkout).
+ */
+function voitkus_checkout_payment_gateways_admin_notice(): void
+{
+    if (! function_exists('is_checkout') || ! is_checkout() || ! current_user_can('manage_woocommerce')) {
+        return;
+    }
+
+    if (function_exists('is_wc_endpoint_url') && is_wc_endpoint_url()) {
+        return;
+    }
+
+    $gateways = WC()->payment_gateways()->get_available_payment_gateways();
+
+    if ($gateways !== []) {
+        return;
+    }
+
+    echo '<div class="woocommerce-info voitkus-checkout-admin-hint">';
+    echo esc_html__(
+        'Brak metod płatności dla klientów. Włącz bramkę w WooCommerce → Ustawienia → Płatności (np. Przelewy24) i tryb testowy.',
+        'voitkus'
+    );
+    echo '</div>';
+}
+add_action('woocommerce_before_checkout_form', 'voitkus_checkout_payment_gateways_admin_notice', 6);
+
+/**
+ * Dostawa: zawsze kalkulator, zmiana adresu, wyczyszczenie wyboru (koszyk + checkout).
+ */
+function voitkus_register_shipping_tools(): void
+{
+    if (! class_exists('WooCommerce')) {
+        return;
+    }
+
+    add_filter('woocommerce_shipping_show_shipping_calculator', 'voitkus_always_show_shipping_calculator', 10, 3);
+    add_filter('woocommerce_cart_no_shipping_available_html', 'voitkus_cart_no_shipping_message', 10, 2);
+    add_filter('woocommerce_shipping_may_be_available_html', 'voitkus_shipping_enter_address_message');
+    add_filter('woocommerce_no_shipping_available_html', 'voitkus_no_shipping_checkout_message');
+    add_action('wp_loaded', 'voitkus_handle_reset_shipping_address', 20);
+}
+add_action('after_setup_theme', 'voitkus_register_shipping_tools', 21);
+
+function voitkus_always_show_shipping_calculator(bool $show, int $index, array $package): bool
+{
+    unset($index, $package);
+
+    if ('yes' !== get_option('woocommerce_enable_shipping_calc')) {
+        return $show;
+    }
+
+    if (function_exists('is_cart') && is_cart()) {
+        return true;
+    }
+
+    if (function_exists('is_checkout') && is_checkout() && (! function_exists('is_wc_endpoint_url') || ! is_wc_endpoint_url())) {
+        return true;
+    }
+
+    return $show;
+}
+
+function voitkus_shipping_alert(string $message, string $type = 'info'): string
+{
+    $allowed = [
+        'info'    => true,
+        'warning' => true,
+        'success' => true,
+    ];
+    $type = isset($allowed[$type]) ? $type : 'info';
+
+    return sprintf(
+        '<div class="voitkus-shipping-alert voitkus-shipping-alert--%1$s" role="status">%2$s</div>',
+        esc_attr($type),
+        wp_kses_post($message)
+    );
+}
+
+function voitkus_cart_no_shipping_message(string $html, string $formatted_destination): string
+{
+    unset($html);
+
+    if ($formatted_destination !== '') {
+        $message = sprintf(
+            /* translators: %s: formatted shipping address */
+            __('Brak dostawy dla %s. Sprawdź kod pocztowy lub wybierz inny adres w kroku 1.', 'voitkus'),
+            '<strong>' . esc_html($formatted_destination) . '</strong>'
+        );
+    } else {
+        $message = esc_html__('Brak dostawy dla podanego adresu. Sprawdź kod pocztowy w kroku 1.', 'voitkus');
+    }
+
+    return voitkus_shipping_alert($message, 'warning');
+}
+
+function voitkus_shipping_enter_address_message(string $html): string
+{
+    unset($html);
+
+    return voitkus_shipping_alert(
+        esc_html__('Podaj kod pocztowy i miejscowość, aby zobaczyć metody dostawy.', 'voitkus'),
+        'info'
+    );
+}
+
+function voitkus_no_shipping_checkout_message(string $html): string
+{
+    unset($html);
+
+    return voitkus_shipping_alert(
+        esc_html__(
+            'Brak metod dostawy dla tego adresu. Uzupełnij lub popraw dane w formularzu po lewej stronie.',
+            'voitkus'
+        ),
+        'warning'
+    );
+}
+
+/**
+ * Stan panelu dostawy — bez WC()->shipping()->get_packages() (rekurencja w szablonie).
+ *
+ * @param array<int, WC_Shipping_Rate>|null $available_methods
+ * @return array{label: string, state: string}
+ */
+function voitkus_get_shipping_panel_state(?array $available_methods = null, ?string $chosen_method = null, string $formatted_destination = ''): array
+{
+    $has_methods = is_array($available_methods) && $available_methods !== [];
+
+    if ($has_methods) {
+        if ($chosen_method !== null && $chosen_method !== '') {
+            return [
+                'label' => esc_html__('Metoda dostawy wybrana', 'voitkus'),
+                'state' => 'ready',
+            ];
+        }
+
+        return [
+            'label' => esc_html__('Wybierz metodę dostawy (krok 2)', 'voitkus'),
+            'state' => 'methods',
+        ];
+    }
+
+    $has_addr = $formatted_destination !== '';
+
+    if (! $has_addr && WC()->customer) {
+        $customer = WC()->customer;
+        $has_addr = trim((string) $customer->get_shipping_postcode()) !== ''
+            || trim((string) $customer->get_shipping_city()) !== '';
+    }
+
+    if ($has_addr) {
+        return [
+            'label' => esc_html__('Sprawdź adres — brak dostępnych metod', 'voitkus'),
+            'state' => 'warning',
+        ];
+    }
+
+    return [
+        'label' => esc_html__('Podaj adres dostawy (krok 1)', 'voitkus'),
+        'state' => 'empty',
+    ];
+}
+
+/**
+ * @param array<int, WC_Shipping_Rate>|null $available_methods
+ */
+function voitkus_get_shipping_panel_summary(?array $available_methods = null, ?string $chosen_method = null, string $formatted_destination = ''): string
+{
+    $parts = [];
+
+    if ($formatted_destination !== '') {
+        $parts[] = $formatted_destination;
+    }
+
+    if (is_array($available_methods) && $chosen_method !== null && $chosen_method !== '') {
+        foreach ($available_methods as $method) {
+            if (! is_object($method) || ! isset($method->id) || $method->id !== $chosen_method) {
+                continue;
+            }
+
+            $parts[] = wp_strip_all_tags(wc_cart_totals_shipping_method_label($method));
+            break;
+        }
+    }
+
+    return implode(' · ', array_filter($parts));
+}
+
+/**
+ * Adres do wyświetlenia w panelu (gdy WC nie zwróci formatted_destination).
+ */
+function voitkus_get_shipping_display_destination(): string
+{
+    if (! WC()->customer) {
+        return '';
+    }
+
+    $customer = WC()->customer;
+    $dest     = WC()->countries->get_formatted_address(
+        [
+            'country'  => $customer->get_shipping_country(),
+            'state'    => $customer->get_shipping_state(),
+            'postcode' => $customer->get_shipping_postcode(),
+            'city'     => $customer->get_shipping_city(),
+            'address_1' => $customer->get_shipping_address_1(),
+        ],
+        ', '
+    );
+
+    if ($dest !== '') {
+        return $dest;
+    }
+
+    $parts = array_filter(
+        [
+            trim((string) $customer->get_shipping_postcode()),
+            trim((string) $customer->get_shipping_city()),
+        ]
+    );
+
+    return implode(' ', $parts);
+}
+
+/**
+ * @param array<int, WC_Shipping_Rate>|null $available_methods
+ */
+function voitkus_is_inpost_shipping_method(?string $chosen_method, ?array $available_methods = null): bool
+{
+    if ($chosen_method !== null && $chosen_method !== '') {
+        $haystack = strtolower($chosen_method);
+
+        if (str_contains($haystack, 'inpost') || str_contains($haystack, 'paczkomat') || str_contains($haystack, 'easypack')) {
+            return true;
+        }
+    }
+
+    if (! is_array($available_methods)) {
+        return false;
+    }
+
+    foreach ($available_methods as $method) {
+        if (! is_object($method) || ! isset($method->id)) {
+            continue;
+        }
+
+        $id = strtolower((string) $method->id);
+
+        if (str_contains($id, 'inpost') || str_contains($id, 'paczkomat') || str_contains($id, 'easypack')) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function voitkus_render_shipping_tools_markup(): void
+{
+    if (! WC()->cart || ! WC()->cart->needs_shipping()) {
+        return;
+    }
+
+    $is_checkout  = function_exists('is_checkout') && is_checkout() && (! function_exists('is_wc_endpoint_url') || ! is_wc_endpoint_url());
+    $reset_action = $is_checkout ? wc_get_checkout_url() : wc_get_cart_url();
+    ?>
+    <footer class="voitkus-shipping-panel__footer">
+        <div class="voitkus-shipping-tools" role="group" aria-label="<?php esc_attr_e('Zarządzanie dostawą', 'voitkus'); ?>">
+            <?php if ($is_checkout) : ?>
+                <button type="button" class="voitkus-shipping-tools__edit-address">
+                    <?php esc_html_e('Edytuj adres w formularzu', 'voitkus'); ?>
+                </button>
+            <?php else : ?>
+                <button
+                    type="button"
+                    class="voitkus-shipping-tools__scroll-address"
+                    data-voitkus-scroll-address
+                ><?php esc_html_e('Przejdź do formularza adresu', 'voitkus'); ?></button>
+            <?php endif; ?>
+            <form
+                class="voitkus-shipping-reset-form"
+                method="post"
+                action="<?php echo esc_url($reset_action); ?>"
+            >
+                <?php wp_nonce_field('voitkus_reset_shipping', 'voitkus_reset_shipping_nonce'); ?>
+                <input type="hidden" name="voitkus_reset_shipping" value="1" />
+                <button type="submit" class="voitkus-shipping-tools__reset" data-voitkus-reset-shipping>
+                    <?php esc_html_e('Wyczyść i zacznij od nowa', 'voitkus'); ?>
+                </button>
+            </form>
+        </div>
+    </footer>
+    <?php
+}
+
+function voitkus_handle_reset_shipping_address(): void
+{
+    if (! class_exists('WooCommerce') || ! function_exists('WC')) {
+        return;
+    }
+
+    $is_post = isset($_POST['voitkus_reset_shipping']);
+    $is_get  = isset($_GET['voitkus_reset_shipping']);
+
+    if (! $is_post && ! $is_get) {
+        return;
+    }
+
+    $nonce = '';
+
+    if ($is_post && isset($_POST['voitkus_reset_shipping_nonce'])) {
+        $nonce = sanitize_text_field(wp_unslash($_POST['voitkus_reset_shipping_nonce']));
+    } elseif ($is_get && isset($_GET['_wpnonce'])) {
+        $nonce = sanitize_text_field(wp_unslash($_GET['_wpnonce']));
+    }
+
+    if ($nonce === '' || ! wp_verify_nonce($nonce, 'voitkus_reset_shipping')) {
+        wc_add_notice(esc_html__('Nie udało się wyczyścić adresu. Odśwież stronę i spróbuj ponownie.', 'voitkus'), 'error');
+
+        return;
+    }
+
+    $on_checkout = function_exists('is_checkout') && is_checkout() && (! function_exists('is_wc_endpoint_url') || ! is_wc_endpoint_url());
+    $on_cart     = ! $on_checkout;
+
+    $customer = WC()->customer;
+
+    if (! $customer) {
+        return;
+    }
+
+    $base_country = WC()->countries->get_base_country();
+
+    $customer->set_shipping_country($base_country);
+    $customer->set_shipping_state('');
+    $customer->set_shipping_postcode('');
+    $customer->set_shipping_city('');
+    $customer->set_shipping_address_1('');
+    $customer->set_shipping_address_2('');
+    $customer->set_calculated_shipping(false);
+    $customer->set_billing_country($base_country);
+    $customer->set_billing_postcode('');
+    $customer->set_billing_city('');
+    $customer->set_billing_state('');
+    $customer->set_billing_address_1('');
+    $customer->set_billing_address_2('');
+    $customer->save();
+
+    if (WC()->session) {
+        WC()->session->set('chosen_shipping_methods', []);
+        WC()->session->set('shipping_for_package_0', null);
+        WC()->session->set('previous_shipping_methods', null);
+        foreach (array_keys(WC()->session->get_session_data()) as $session_key) {
+            if (preg_match('/inpost|paczkomat|easypack|parcel.?locker|shipping_for_package/i', (string) $session_key)) {
+                WC()->session->set($session_key, null);
+            }
+        }
+    }
+
+    if (WC()->cart) {
+        WC()->cart->calculate_shipping();
+        WC()->cart->calculate_totals();
+    }
+
+    wc_add_notice(
+        esc_html__('Adres dostawy wyczyszczony. Wybierz adres i metodę dostawy ponownie.', 'voitkus'),
+        'notice'
+    );
+
+    $redirect = $on_checkout ? wc_get_checkout_url() : wc_get_cart_url();
+    wp_safe_redirect($redirect);
+    exit;
+}
 
 /**
  * Wymusza własny katalog zamiast domyślnej pętli WooCommerce / bloków.
@@ -149,6 +655,149 @@ function voitkus_render_custom_cart(): void
 }
 add_action('template_redirect', 'voitkus_render_custom_cart', 5);
 
+/**
+ * Wymusza własne zamówienie (checkout) w układzie jak koszyk.
+ */
+function voitkus_render_custom_checkout(): void
+{
+    if (is_admin() || ! function_exists('is_checkout')) {
+        return;
+    }
+
+    if (! is_checkout() || isset($_GET['wc-ajax'])) {
+        return;
+    }
+
+    if (function_exists('is_wc_endpoint_url') && is_wc_endpoint_url()) {
+        return;
+    }
+
+    if (! defined('DONOTCACHEPAGE')) {
+        define('DONOTCACHEPAGE', true);
+    }
+
+    get_header();
+    echo '<main class="woocommerce-page page-main checkout-page">';
+    echo '<div class="page-main__inner">';
+    echo '<header class="page-main__header"><h1 class="page-main__title">' . esc_html__('Zamówienie', 'voitkus') . '</h1></header>';
+    echo '<div class="page-main__content">';
+    echo do_shortcode('[woocommerce_checkout]');
+    echo '</div>';
+    echo '</div>';
+    echo '</main>';
+    get_footer();
+    exit;
+}
+add_action('template_redirect', 'voitkus_render_custom_checkout', 5);
+
+/**
+ * Wymusza szablony WooCommerce z motywu voitkus.
+ */
+function voitkus_locate_woocommerce_template(string $template, string $template_name): string
+{
+    $paths = [
+        trailingslashit(get_stylesheet_directory()) . 'woocommerce/' . $template_name,
+        trailingslashit(get_template_directory()) . 'woocommerce/' . $template_name,
+    ];
+
+    foreach ($paths as $path) {
+        if (is_readable($path)) {
+            return $path;
+        }
+    }
+
+    return $template;
+}
+add_filter('woocommerce_locate_template', 'voitkus_locate_woocommerce_template', 50, 2);
+
+function voitkus_is_order_received_page(): bool
+{
+    return function_exists('is_checkout')
+        && is_checkout()
+        && function_exists('is_wc_endpoint_url')
+        && is_wc_endpoint_url('order-received');
+}
+
+/**
+ * Thank you — layout motywu + logika WooCommerce (shortcode).
+ */
+function voitkus_render_custom_order_received(): void
+{
+    if (is_admin() || ! voitkus_is_order_received_page()) {
+        return;
+    }
+
+    if (isset($_GET['wc-ajax'])) {
+        return;
+    }
+
+    if (! defined('DONOTCACHEPAGE')) {
+        define('DONOTCACHEPAGE', true);
+    }
+
+    get_header();
+    echo '<main class="woocommerce-page page-main order-received-page">';
+    echo '<div class="page-main__inner">';
+    echo '<div class="page-main__content woocommerce">';
+    echo do_shortcode('[woocommerce_checkout]');
+    echo '</div>';
+    echo '</div>';
+    echo '</main>';
+    get_footer();
+    exit;
+}
+add_action('template_redirect', 'voitkus_render_custom_order_received', 4);
+
+function voitkus_order_received_body_class(array $classes): array
+{
+    if (voitkus_is_order_received_page()) {
+        $classes[] = 'order-received-page';
+        $classes[] = 'voitkus-order-received-active';
+    }
+
+    if (function_exists('is_account_page') && is_account_page() && function_exists('is_wc_endpoint_url') && is_wc_endpoint_url('view-order')) {
+        $classes[] = 'order-received-page';
+        $classes[] = 'voitkus-view-order-active';
+    }
+
+    return $classes;
+}
+add_filter('body_class', 'voitkus_order_received_body_class');
+
+/**
+ * Bez skryptów checkoutu / fragmentów na stronie podziękowania.
+ */
+function voitkus_optimize_order_received_assets(): void
+{
+    if (! voitkus_is_order_received_page()) {
+        return;
+    }
+
+    $script_handles = [
+        'wc-checkout',
+        'wc-cart',
+        'wc-cart-fragments',
+        'voitkus-checkout',
+        'selectWoo',
+        'select2',
+    ];
+
+    foreach ($script_handles as $handle) {
+        wp_dequeue_script($handle);
+        wp_deregister_script($handle);
+    }
+
+    $style_handles = [
+        'select2',
+    ];
+
+    foreach ($style_handles as $handle) {
+        wp_dequeue_style($handle);
+        wp_deregister_style($handle);
+    }
+}
+add_action('wp_enqueue_scripts', 'voitkus_optimize_order_received_assets', 100);
+
 function voitkus_enqueue_assets(): void
 {
     $tokens_path = get_stylesheet_directory() . '/assets/design-tokens.css';
@@ -187,12 +836,15 @@ function voitkus_enqueue_assets(): void
             $product_deps[] = 'wc-cart';
         }
 
-        if (is_product() || is_checkout()) {
-            wp_enqueue_script('wc-add-to-cart');
-            $product_deps[] = 'wc-add-to-cart';
+        if (function_exists('is_checkout') && is_checkout() && ! is_wc_endpoint_url()) {
+            wp_enqueue_script('wc-checkout');
+            wp_enqueue_script('wc-cart-fragments');
+            $product_deps[] = 'wc-checkout';
         }
 
         if (is_product()) {
+            wp_enqueue_script('wc-add-to-cart');
+            $product_deps[] = 'wc-add-to-cart';
             wp_enqueue_script('wc-cart-fragments');
         }
 
@@ -211,6 +863,15 @@ add_action('wp_enqueue_scripts', 'voitkus_enqueue_assets', 20);
  * Fragmenty koszyka na wszystkich stronach (w tym Kawa / shop) — domyślnie WC wyłącza poza koszykiem.
  */
 add_filter('woocommerce_cart_fragments_enabled', static function (): bool {
+    if (
+        function_exists('is_checkout')
+        && is_checkout()
+        && function_exists('is_wc_endpoint_url')
+        && is_wc_endpoint_url('order-received')
+    ) {
+        return false;
+    }
+
     return true;
 });
 
@@ -220,6 +881,15 @@ add_filter('woocommerce_cart_fragments_enabled', static function (): bool {
 function voitkus_ensure_cart_loaded(): void
 {
     if (is_admin() || ! function_exists('WC')) {
+        return;
+    }
+
+    if (
+        function_exists('is_checkout')
+        && is_checkout()
+        && function_exists('is_wc_endpoint_url')
+        && is_wc_endpoint_url('order-received')
+    ) {
         return;
     }
 
@@ -357,6 +1027,454 @@ function voitkus_account_url(): string
     }
 
     return home_url('/my-account/');
+}
+
+/**
+ * ID miniatury produktu (wariant → rodzic, potem galeria).
+ */
+function voitkus_resolve_product_image_id(WC_Product $product): int
+{
+    $image_id = (int) $product->get_image_id();
+
+    if ($image_id > 0) {
+        return $image_id;
+    }
+
+    if ($product->is_type('variation')) {
+        $parent = wc_get_product($product->get_parent_id());
+
+        if ($parent instanceof WC_Product) {
+            $image_id = (int) $parent->get_image_id();
+
+            if ($image_id > 0) {
+                return $image_id;
+            }
+
+            $parent_gallery = $parent->get_gallery_image_ids();
+
+            if ($parent_gallery !== []) {
+                return (int) $parent_gallery[0];
+            }
+        }
+    }
+
+    $gallery = $product->get_gallery_image_ids();
+
+    if ($gallery !== []) {
+        return (int) $gallery[0];
+    }
+
+    return 0;
+}
+
+/**
+ * Miniatura produktu — te same rozmiary co katalog (large), z fallback URL.
+ */
+function voitkus_product_thumbnail_html(WC_Product $product, string $class): string
+{
+    $image_id = voitkus_resolve_product_image_id($product);
+    $alt      = $product->get_name();
+
+    if ($image_id > 0) {
+        foreach (['large', 'medium', 'woocommerce_thumbnail', 'thumbnail', 'full'] as $size) {
+            $url = wp_get_attachment_image_url($image_id, $size);
+
+            if ($url) {
+                return sprintf(
+                    '<img src="%s" alt="%s" class="%s" loading="lazy" decoding="async" />',
+                    esc_url($url),
+                    esc_attr($alt),
+                    esc_attr($class)
+                );
+            }
+        }
+
+        $html = wp_get_attachment_image(
+            $image_id,
+            'large',
+            false,
+            [
+                'class'    => $class,
+                'loading'  => 'lazy',
+                'decoding' => 'async',
+            ]
+        );
+
+        if ($html !== '') {
+            return $html;
+        }
+    }
+
+    return sprintf(
+        '<span class="%1$s %1$s--empty" role="img" aria-label="%2$s"><span class="%1$s__label" aria-hidden="true">%3$s</span></span>',
+        esc_attr($class),
+        esc_attr($alt),
+        esc_html__('Kawa', 'voitkus')
+    );
+}
+
+/**
+ * HTML wiersza produktu w podsumowaniu checkout (zdjęcie + nazwa + meta).
+ */
+function voitkus_checkout_line_item_html(array $cart_item, string $cart_item_key): string
+{
+    $_product = apply_filters('woocommerce_cart_item_product', $cart_item['data'], $cart_item, $cart_item_key);
+
+    if (! $_product instanceof WC_Product || ! $_product->exists()) {
+        return '';
+    }
+
+    $product_id = function_exists('voitkus_lot_product_id') ? voitkus_lot_product_id($_product) : (int) $_product->get_id();
+    $title      = $_product->get_name();
+    $permalink  = $_product->is_visible() ? $_product->get_permalink($cart_item) : '';
+    $origin     = function_exists('voitkus_lot_field') ? voitkus_lot_field($product_id, 'voitkus_origin', $_product) : '';
+    $quantity   = (int) $cart_item['quantity'];
+    $thumbnail  = apply_filters(
+        'woocommerce_cart_item_thumbnail',
+        voitkus_product_thumbnail_html($_product, 'checkout-line-item__img'),
+        $cart_item,
+        $cart_item_key
+    );
+
+    $item_data = wc_get_formatted_cart_item_data($cart_item);
+
+    ob_start();
+    ?>
+    <div class="checkout-line-item">
+        <div class="checkout-line-item__media">
+            <?php if ($permalink !== '') : ?>
+                <a href="<?php echo esc_url($permalink); ?>" class="checkout-line-item__img-link">
+                    <?php echo $thumbnail; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                </a>
+            <?php else : ?>
+                <?php echo $thumbnail; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+            <?php endif; ?>
+        </div>
+        <div class="checkout-line-item__body">
+            <?php if ($permalink !== '') : ?>
+                <a href="<?php echo esc_url($permalink); ?>" class="checkout-line-item__title"><?php echo esc_html($title); ?></a>
+            <?php else : ?>
+                <span class="checkout-line-item__title"><?php echo esc_html($title); ?></span>
+            <?php endif; ?>
+
+            <?php if ($origin !== '') : ?>
+                <span class="checkout-line-item__origin"><?php echo esc_html($origin); ?></span>
+            <?php endif; ?>
+
+            <?php if ($item_data !== '') : ?>
+                <div class="checkout-line-item__meta"><?php echo $item_data; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></div>
+            <?php endif; ?>
+
+            <span class="checkout-line-item__qty">
+                <?php
+                echo esc_html(
+                    sprintf(
+                        /* translators: %d: quantity */
+                        _n('Ilość: %d szt.', 'Ilość: %d szt.', $quantity, 'voitkus'),
+                        $quantity
+                    )
+                );
+                ?>
+            </span>
+        </div>
+    </div>
+    <?php
+
+    return (string) ob_get_clean();
+}
+
+/**
+ * Thank you / view-order — kontekst szczegółów zamówienia.
+ */
+function voitkus_is_order_details_context(): bool
+{
+    if (function_exists('voitkus_is_order_received_page') && voitkus_is_order_received_page()) {
+        return true;
+    }
+
+    return function_exists('is_account_page')
+        && is_account_page()
+        && function_exists('is_wc_endpoint_url')
+        && is_wc_endpoint_url('view-order');
+}
+
+/**
+ * @return list<array{label: string, value: string}>
+ */
+function voitkus_order_item_lot_specs(int $product_id, ?WC_Product $product): array
+{
+    if (! function_exists('voitkus_lot_field') || ! function_exists('voitkus_product_meta_fields')) {
+        return [];
+    }
+
+    $field_defs = voitkus_product_meta_fields();
+    $keys       = ['voitkus_process', 'voitkus_region', 'voitkus_variety', 'voitkus_roast_level', 'voitkus_weight'];
+    $specs      = [];
+
+    foreach ($keys as $key) {
+        $value = voitkus_lot_field($product_id, $key, $product);
+
+        if ($value === '') {
+            continue;
+        }
+
+        $specs[] = [
+            'label' => $field_defs[ $key ]['label'] ?? $key,
+            'value' => $value,
+        ];
+    }
+
+    return $specs;
+}
+
+/**
+ * Karta produktu na stronie podziękowania / zamówienia (foto + lot + meta).
+ *
+ * @param WC_Order|mixed              $order
+ * @param WC_Order_Item_Product|mixed $item
+ */
+function voitkus_order_line_item_html($order, $item, int $item_id, bool $show_price = true): string
+{
+    static $rendering = false;
+
+    if ($rendering) {
+        return '';
+    }
+
+    if (! is_a($order, 'WC_Order') || ! is_a($item, 'WC_Order_Item_Product')) {
+        return '';
+    }
+
+    $product = $item->get_product();
+
+    if (! $product instanceof WC_Product) {
+        return '';
+    }
+
+    $rendering = true;
+
+    $product_id = function_exists('voitkus_lot_product_id') ? voitkus_lot_product_id($product) : (int) $product->get_id();
+    $title      = $item->get_name();
+    $is_visible = $product->is_visible();
+    $permalink  = apply_filters('woocommerce_order_item_permalink', $is_visible ? $product->get_permalink($item) : '', $item, $order);
+    $origin     = function_exists('voitkus_lot_field') ? voitkus_lot_field($product_id, 'voitkus_origin', $product) : '';
+    $hook       = function_exists('voitkus_lot_field') ? voitkus_lot_field($product_id, 'voitkus_hook', $product) : '';
+    $flavor     = function_exists('voitkus_lot_field') ? voitkus_lot_field($product_id, 'voitkus_flavor_notes', $product) : '';
+    $specs      = voitkus_order_item_lot_specs($product_id, $product);
+    $sku        = $product->get_sku();
+    $qty        = (int) $item->get_quantity();
+    $refunded   = $order->get_qty_refunded_for_item($item_id);
+
+    if ($refunded) {
+        $qty_label = sprintf(
+            /* translators: 1: ordered qty, 2: qty after refund */
+            __('Ilość: %1$s szt. (po zwrocie: %2$s szt.)', 'voitkus'),
+            (string) $qty,
+            (string) ($qty + $refunded)
+        );
+    } else {
+        $qty_label = sprintf(
+            /* translators: %d: quantity */
+            _n('Ilość: %d szt.', 'Ilość: %d szt.', $qty, 'voitkus'),
+            $qty
+        );
+    }
+
+    $thumbnail = voitkus_product_thumbnail_html($product, 'voitkus-order-line__img');
+
+    $item_meta = '';
+    if (function_exists('wc_display_item_meta')) {
+        ob_start();
+        do_action('woocommerce_order_item_meta_start', $item_id, $item, $order, false);
+        wc_display_item_meta($item);
+        do_action('woocommerce_order_item_meta_end', $item_id, $item, $order, false);
+        $item_meta = trim((string) ob_get_clean());
+    }
+
+    ob_start();
+    ?>
+    <div class="voitkus-order-line<?php echo $show_price ? '' : ' voitkus-order-line--no-price'; ?>">
+        <div class="voitkus-order-line__media">
+            <?php if ($permalink !== '') : ?>
+                <a href="<?php echo esc_url($permalink); ?>" class="voitkus-order-line__img-link">
+                    <?php echo $thumbnail; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                </a>
+            <?php else : ?>
+                <?php echo $thumbnail; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+            <?php endif; ?>
+        </div>
+        <div class="voitkus-order-line__body">
+            <h3 class="voitkus-order-line__title">
+                <?php if ($permalink !== '') : ?>
+                    <a href="<?php echo esc_url($permalink); ?>"><?php echo esc_html($title); ?></a>
+                <?php else : ?>
+                    <?php echo esc_html($title); ?>
+                <?php endif; ?>
+            </h3>
+
+            <?php if ($hook !== '') : ?>
+                <p class="voitkus-order-line__hook"><?php echo esc_html($hook); ?></p>
+            <?php endif; ?>
+
+            <?php if ($origin !== '') : ?>
+                <p class="voitkus-order-line__origin"><?php echo esc_html($origin); ?></p>
+            <?php endif; ?>
+
+            <?php if ($flavor !== '') : ?>
+                <p class="voitkus-order-line__flavor">
+                    <span class="voitkus-order-line__flavor-label"><?php esc_html_e('Nuty', 'voitkus'); ?>:</span>
+                    <?php echo esc_html($flavor); ?>
+                </p>
+            <?php endif; ?>
+
+            <?php if ($specs !== []) : ?>
+                <dl class="voitkus-order-line__specs">
+                    <?php foreach ($specs as $spec) : ?>
+                        <div class="voitkus-order-line__spec">
+                            <dt><?php echo esc_html($spec['label']); ?></dt>
+                            <dd><?php echo esc_html($spec['value']); ?></dd>
+                        </div>
+                    <?php endforeach; ?>
+                </dl>
+            <?php endif; ?>
+
+            <?php if ($sku !== '') : ?>
+                <p class="voitkus-order-line__sku">
+                    <span class="voitkus-order-line__sku-label"><?php esc_html_e('SKU', 'voitkus'); ?>:</span>
+                    <?php echo esc_html($sku); ?>
+                </p>
+            <?php endif; ?>
+
+            <?php if ($item_meta !== '') : ?>
+                <div class="voitkus-order-line__meta"><?php echo $item_meta; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></div>
+            <?php endif; ?>
+
+            <p class="voitkus-order-line__qty"><?php echo esc_html($qty_label); ?></p>
+        </div>
+        <?php if ($show_price) : ?>
+            <div class="voitkus-order-line__price">
+                <span class="voitkus-order-line__price-label"><?php esc_html_e('Łącznie', 'voitkus'); ?></span>
+                <?php echo wp_kses_post($order->get_formatted_line_subtotal($item)); ?>
+            </div>
+        <?php endif; ?>
+    </div>
+    <?php
+
+    $html = (string) ob_get_clean();
+    $rendering = false;
+
+    return $html;
+}
+
+/**
+ * Gdy WC ładuje starą tabelę — w komórce produktu pełna karta.
+ */
+function voitkus_order_item_name_rich_markup(string $name, $item, bool $is_visible): string
+{
+    static $in_filter = false;
+
+    unset($is_visible);
+
+    if ($in_filter || ! voitkus_is_order_details_context()) {
+        return $name;
+    }
+
+    if (! is_a($item, 'WC_Order_Item_Product')) {
+        return $name;
+    }
+
+    $order = $item->get_order();
+
+    if (! is_a($order, 'WC_Order')) {
+        return $name;
+    }
+
+    $in_filter = true;
+    $html      = voitkus_order_line_item_html($order, $item, (int) $item->get_id(), false);
+    $in_filter = false;
+
+    return $html !== '' ? $html : $name;
+}
+
+function voitkus_register_order_item_display_filters(): void
+{
+    add_filter('woocommerce_order_item_name', 'voitkus_order_item_name_rich_markup', 20, 3);
+}
+add_action('woocommerce_init', 'voitkus_register_order_item_display_filters');
+
+/**
+ * Czy jesteśmy na checkout (bez endpointów typu order-received).
+ */
+function voitkus_is_active_checkout(): bool
+{
+    if (! function_exists('is_checkout') || ! is_checkout()) {
+        return false;
+    }
+
+    if (function_exists('is_wc_endpoint_url') && is_wc_endpoint_url()) {
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * Wymusza kartę produktu z foto w podsumowaniu — gdy WC ładuje domyślny review-order.php.
+ */
+function voitkus_checkout_cart_item_name(string $name, array $cart_item, string $cart_item_key): string
+{
+    if (! voitkus_is_active_checkout()) {
+        return $name;
+    }
+
+    $html = voitkus_checkout_line_item_html($cart_item, $cart_item_key);
+
+    return $html !== '' ? $html : $name;
+}
+add_filter('woocommerce_cart_item_name', 'voitkus_checkout_cart_item_name', 20, 3);
+
+/**
+ * Ilość jest w voitkus_checkout_line_item_html — nie doklejaj „× 6” z core.
+ */
+function voitkus_checkout_cart_item_quantity(string $quantity_html, array $cart_item, string $cart_item_key): string
+{
+    if (! voitkus_is_active_checkout()) {
+        return $quantity_html;
+    }
+
+    return '';
+}
+add_filter('woocommerce_checkout_cart_item_quantity', 'voitkus_checkout_cart_item_quantity', 20, 3);
+
+add_filter('woocommerce_locate_template', static function (string $template, string $template_name): string {
+    if ($template_name !== 'checkout/review-order.php') {
+        return $template;
+    }
+
+    $theme_file = voitkus_locate_wc_template('checkout/review-order.php');
+
+    return $theme_file !== '' ? $theme_file : $template;
+}, 20, 2);
+
+/**
+ * Ścieżka do szablonów WooCommerce w aktywnym motywie (child lub parent).
+ */
+function voitkus_locate_wc_template(string $relative): string
+{
+    $relative = ltrim($relative, '/');
+    $child    = get_stylesheet_directory() . '/woocommerce/' . $relative;
+
+    if (is_readable($child)) {
+        return $child;
+    }
+
+    $parent = get_template_directory() . '/woocommerce/' . $relative;
+
+    if (is_readable($parent)) {
+        return $parent;
+    }
+
+    return '';
 }
 
 function voitkus_cart_count(): int
