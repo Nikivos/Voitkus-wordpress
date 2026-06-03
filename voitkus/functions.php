@@ -12,6 +12,7 @@ if (! defined('ABSPATH')) {
 $voitkus_includes = [
     '/inc/lots.php',
     '/inc/product-meta.php',
+    '/inc/legal/regulamin.php',
 ];
 
 foreach ($voitkus_includes as $relative) {
@@ -2215,14 +2216,178 @@ function voitkus_footer_link_groups(): array
 }
 
 /**
+ * Oficjalne dane JDG (CEIDG, NIP potwierdzony).
+ *
+ * @return array{
+ *   legal_name: string,
+ *   short_name: string,
+ *   owner: string,
+ *   nip: string,
+ *   street: string,
+ *   postcode: string,
+ *   city: string,
+ *   country: string,
+ *   email: string,
+ *   activity_start: string
+ * }
+ */
+function voitkus_company_details(): array
+{
+    return [
+        'legal_name'     => 'Mikita Voitkus VOITKUSCOFFEE',
+        'short_name'     => 'MIKITA VOITKUS',
+        'owner'          => 'Mikita Voitkus',
+        'nip'            => '5253092710',
+        'street'         => 'ul. Adama Mickiewicza 38',
+        'postcode'       => '01-650',
+        'city'           => 'Warszawa',
+        'country'        => 'PL',
+        'email'          => 'voitkus.coffee@gmail.com',
+        'activity_start' => '2026-06-04',
+    ];
+}
+
+function voitkus_company_address_line(): string
+{
+    $c = voitkus_company_details();
+
+    return sprintf('%s, %s %s', $c['street'], $c['postcode'], $c['city']);
+}
+
+/**
+ * Jednorazowa synchronizacja adresu sklepu WooCommerce.
+ */
+function voitkus_sync_woocommerce_company_address(): void
+{
+    if (! class_exists('WooCommerce')) {
+        return;
+    }
+
+    $flag = 'voitkus_wc_company_sync_v1';
+
+    if (get_option($flag) === 'done') {
+        return;
+    }
+
+    $c = voitkus_company_details();
+
+    update_option('woocommerce_store_address', 'Adama Mickiewicza 38');
+    update_option('woocommerce_store_city', $c['city']);
+    update_option('woocommerce_store_postcode', $c['postcode']);
+    update_option('woocommerce_default_country', $c['country']);
+    update_option('woocommerce_store_address_2', '');
+
+    if (get_option('woocommerce_email_from_name') === false || get_option('woocommerce_email_from_name') === '') {
+        update_option('woocommerce_email_from_name', $c['short_name']);
+    }
+
+    update_option($flag, 'done', false);
+}
+add_action('init', 'voitkus_sync_woocommerce_company_address', 6);
+
+/**
+ * Strony prawne: /legal/terms/ + przypisanie do WooCommerce.
+ */
+function voitkus_find_page_by_slug(string $slug, int $parent_id = 0): int
+{
+    $query = new WP_Query(
+        [
+            'post_type'              => 'page',
+            'post_status'            => 'publish',
+            'name'                   => $slug,
+            'post_parent'            => $parent_id,
+            'posts_per_page'         => 1,
+            'fields'                 => 'ids',
+            'no_found_rows'          => true,
+            'update_post_meta_cache' => false,
+            'update_post_term_cache' => false,
+        ]
+    );
+
+    if ($query->have_posts()) {
+        return (int) $query->posts[0];
+    }
+
+    return 0;
+}
+
+function voitkus_ensure_page(string $slug, string $title, string $content, int $parent_id = 0): int
+{
+    $existing_id = voitkus_find_page_by_slug($slug, $parent_id);
+
+    if ($existing_id > 0) {
+        if ($content !== '') {
+            wp_update_post(
+                [
+                    'ID'           => $existing_id,
+                    'post_content' => $content,
+                ]
+            );
+        }
+
+        return $existing_id;
+    }
+
+    $page_id = wp_insert_post(
+        [
+            'post_title'   => $title,
+            'post_name'    => $slug,
+            'post_content' => $content,
+            'post_status'  => 'publish',
+            'post_type'    => 'page',
+            'post_parent'  => $parent_id,
+        ],
+        true
+    );
+
+    return is_wp_error($page_id) ? 0 : (int) $page_id;
+}
+
+function voitkus_ensure_legal_pages(): void
+{
+    if (is_admin() && ! wp_doing_ajax()) {
+        return;
+    }
+
+    $flag = 'voitkus_legal_pages_v1';
+
+    if (get_option($flag) === 'done') {
+        return;
+    }
+
+    $legal_id = voitkus_ensure_page('legal', 'Informacje prawne', '');
+
+    if ($legal_id <= 0) {
+        return;
+    }
+
+    $terms_id = voitkus_ensure_page('terms', 'Regulamin', '[voitkus_regulamin]', $legal_id);
+
+    if ($terms_id > 0 && class_exists('WooCommerce')) {
+        update_option('woocommerce_terms_page_id', $terms_id);
+    }
+
+    update_option($flag, 'done', false);
+}
+add_action('init', 'voitkus_ensure_legal_pages', 8);
+
+function voitkus_register_legal_shortcodes(): void
+{
+    add_shortcode('voitkus_regulamin', 'voitkus_regulamin_shortcode');
+}
+add_action('init', 'voitkus_register_legal_shortcodes');
+
+/**
  * @return array{tagline: string, instagram: string, email: string}
  */
 function voitkus_footer_defaults(): array
 {
+    $company = voitkus_company_details();
+
     return [
         'tagline'   => 'Świeża palarnia · Warszawa · Małe partie',
         'instagram' => 'https://instagram.com/voitkuscoffee',
-        'email'     => 'hello@voitkuscoffee.com',
+        'email'     => $company['email'],
     ];
 }
 

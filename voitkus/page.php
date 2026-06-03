@@ -29,6 +29,13 @@ if (
 ) {
     $page_classes .= ' order-received-page';
 }
+if (is_page()) {
+    $ancestors = get_post_ancestors(get_queried_object_id());
+    $legal_id  = voitkus_find_page_by_slug('legal');
+    if ($legal_id > 0 && (get_queried_object_id() === $legal_id || in_array($legal_id, $ancestors, true))) {
+        $page_classes .= ' legal-page';
+    }
+}
 ?>
 
 <main class="<?php echo esc_attr($page_classes); ?>">

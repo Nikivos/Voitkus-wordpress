@@ -3,7 +3,7 @@
     Theme URI: https://voitkus.coffee/
     Author: Voitkus Coffee
     Description: Minimal WooCommerce-ready theme for Voitkus Coffee.
-    Version: 0.1.2
+    Version: 0.1.4
     Requires at least: 6.0
     Tested up to: 6.6
     Requires PHP: 8.0
@@ -2355,6 +2355,50 @@
       color: var(--lot-orange);
     }
 
+    .site-footer__legal {
+      padding: 28px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .site-footer__legal-title {
+      margin: 0 0 16px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.52);
+    }
+
+    .site-footer__legal-list {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px 32px;
+      margin: 0;
+    }
+
+    .site-footer__legal-row {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .site-footer__legal-row dt {
+      margin: 0;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.45);
+    }
+
+    .site-footer__legal-row dd {
+      margin: 0;
+      font-size: 14px;
+      line-height: 1.45;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.88);
+    }
+
     .site-footer__bottom {
       display: flex;
       align-items: center;
@@ -2404,6 +2448,11 @@
 
       .site-footer__nav {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .site-footer__legal-list {
+        grid-template-columns: 1fr;
+        gap: 14px;
       }
 
       .site-footer__bottom {
@@ -2497,6 +2546,74 @@
       font-size: clamp(32px, 4.5vw, 56px);
       font-weight: 700;
       letter-spacing: -0.03em;
+    }
+
+    /* Legal pages (regulamin, RODO) */
+    .legal-page .page-main__inner {
+      max-width: 48rem;
+    }
+
+    .legal-document {
+      font-size: 16px;
+      line-height: 1.65;
+      color: var(--voitkus-black);
+    }
+
+    .legal-document__lead {
+      margin: 0 0 32px;
+      padding: 16px 20px;
+      border-radius: 12px;
+      background: rgba(10, 10, 10, 0.04);
+      font-size: 15px;
+      line-height: 1.55;
+      color: var(--voitkus-gray-dark);
+    }
+
+    .legal-document__section {
+      margin-bottom: 32px;
+      padding-bottom: 32px;
+      border-bottom: 1px solid rgba(10, 10, 10, 0.08);
+    }
+
+    .legal-document__section:last-child {
+      margin-bottom: 0;
+      padding-bottom: 0;
+      border-bottom: none;
+    }
+
+    .legal-document__section-title {
+      margin: 0 0 12px;
+      font-family: var(--font-display);
+      font-size: clamp(20px, 2.5vw, 24px);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .legal-document__section-body p {
+      margin: 0 0 12px;
+    }
+
+    .legal-document__section-body p:last-child {
+      margin-bottom: 0;
+    }
+
+    .legal-document__list {
+      margin: 0;
+      padding-left: 1.25rem;
+    }
+
+    .legal-document__list--plain {
+      list-style: none;
+      padding-left: 0;
+    }
+
+    .legal-document__list li {
+      margin-bottom: 8px;
+    }
+
+    .legal-document__section-body a {
+      text-decoration: underline;
+      text-underline-offset: 3px;
     }
 
     .cart-layout {

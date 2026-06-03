@@ -47,6 +47,25 @@ $footer = voitkus_footer_section();
             </nav>
         </div>
 
+        <?php $company = voitkus_company_details(); ?>
+        <section class="site-footer__legal" aria-label="<?php esc_attr_e('Dane firmy', 'voitkus'); ?>">
+            <h2 class="site-footer__legal-title"><?php esc_html_e('Dane firmy', 'voitkus'); ?></h2>
+            <dl class="site-footer__legal-list">
+                <div class="site-footer__legal-row">
+                    <dt><?php esc_html_e('Nazwa', 'voitkus'); ?></dt>
+                    <dd><?php echo esc_html($company['legal_name']); ?></dd>
+                </div>
+                <div class="site-footer__legal-row">
+                    <dt><?php esc_html_e('NIP', 'voitkus'); ?></dt>
+                    <dd><?php echo esc_html($company['nip']); ?></dd>
+                </div>
+                <div class="site-footer__legal-row">
+                    <dt><?php esc_html_e('Adres', 'voitkus'); ?></dt>
+                    <dd><?php echo esc_html(voitkus_company_address_line()); ?></dd>
+                </div>
+            </dl>
+        </section>
+
         <div class="site-footer__bottom">
             <div class="site-footer__contact">
                 <?php if ($footer['instagram'] !== '') : ?>
@@ -66,10 +85,10 @@ $footer = voitkus_footer_section();
             <p class="site-footer__copy">
                 <?php
                 printf(
-                    /* translators: %1$s: year, %2$s: site name */
+                    /* translators: %1$s: year, %2$s: legal company name */
                     esc_html__('© %1$s %2$s. Wszelkie prawa zastrzeżone.', 'voitkus'),
                     esc_html((string) $footer['year']),
-                    'Voitkus Coffee Roastery'
+                    esc_html($company['legal_name'])
                 );
                 ?>
             </p>
