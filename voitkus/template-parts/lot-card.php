@@ -21,7 +21,13 @@ $style = ($lot['accent_css'] ?? '') !== ''
     : '';
 ?>
 
-<a href="<?php echo esc_url($lot['url']); ?>" class="lot-card" data-lot-accent="<?php echo esc_attr($lot['accent'] ?? 'yellow'); ?>"<?php echo $style; ?>>
+<a
+    href="<?php echo esc_url($lot['url']); ?>"
+    class="lot-card"
+    data-lot-accent="<?php echo esc_attr($lot['accent'] ?? 'yellow'); ?>"
+    aria-label="<?php echo esc_attr(sprintf(/* translators: %s: product title */ __('Zobacz produkt: %s', 'voitkus'), $lot['title'])); ?>"
+    <?php echo $style; ?>
+>
     <div class="lot-card__visual">
         <?php if (! empty($lot['brew_badges'])) : ?>
             <div class="lot-card__brew-badges">
@@ -42,11 +48,6 @@ $style = ($lot['accent_css'] ?? '') !== ''
         <?php else : ?>
             <div class="lot-card__image lot-card__image--placeholder"><?php esc_html_e('FOTO PACZKI', 'voitkus'); ?></div>
         <?php endif; ?>
-
-        <span class="lot-card__quick-add">
-            <span><?php esc_html_e('Do koszyka', 'voitkus'); ?></span>
-            <span class="lot-card__quick-add-icon" aria-hidden="true">+</span>
-        </span>
     </div>
     <div class="lot-card__content">
         <?php if (($lot['origin'] ?? '') !== '') : ?>

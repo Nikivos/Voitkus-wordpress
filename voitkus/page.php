@@ -22,6 +22,9 @@ if (function_exists('is_cart') && is_cart()) {
 if (function_exists('is_checkout') && is_checkout()) {
     $page_classes .= ' checkout-page';
 }
+if (function_exists('is_account_page') && is_account_page()) {
+    $page_classes .= ' account-page';
+}
 if (
     function_exists('is_wc_endpoint_url')
     && is_checkout()
@@ -35,20 +38,41 @@ if (is_page()) {
     if ($legal_id > 0 && (get_queried_object_id() === $legal_id || in_array($legal_id, $ancestors, true))) {
         $page_classes .= ' legal-page';
     }
+    if (function_exists('voitkus_is_contact_page') && voitkus_is_contact_page()) {
+        $page_classes .= ' contact-page';
+    }
+    if (function_exists('voitkus_is_about_page') && voitkus_is_about_page()) {
+        $page_classes .= ' about-page';
+    }
+}
+
+$inner_classes = 'page-main__inner';
+if (function_exists('voitkus_is_about_page') && voitkus_is_about_page()) {
+    $inner_classes .= ' page-main__inner--site-grid';
+}
+if (function_exists('is_account_page') && is_account_page()) {
+    $inner_classes .= ' page-main__inner--site-grid';
 }
 ?>
 
 <main class="<?php echo esc_attr($page_classes); ?>">
-    <div class="page-main__inner">
+    <div class="<?php echo esc_attr($inner_classes); ?>">
         <?php
         $is_order_received = function_exists('is_wc_endpoint_url')
             && function_exists('is_checkout')
             && is_checkout()
             && is_wc_endpoint_url('order-received');
+        $hide_page_header = $is_order_received
+            || (
+                function_exists('is_account_page')
+                && is_account_page()
+                && function_exists('is_wc_endpoint_url')
+                && is_wc_endpoint_url('view-order')
+            );
         ?>
         <?php while (have_posts()) : ?>
             <?php the_post(); ?>
-            <?php if (! $is_order_received) : ?>
+            <?php if (! $hide_page_header) : ?>
                 <header class="page-main__header">
                     <h1 class="page-main__title"><?php the_title(); ?></h1>
                 </header>

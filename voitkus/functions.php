@@ -13,6 +13,11 @@ $voitkus_includes = [
     '/inc/lots.php',
     '/inc/product-meta.php',
     '/inc/legal/regulamin.php',
+    '/inc/legal/shipping.php',
+    '/inc/legal/privacy.php',
+    '/inc/contact-page.php',
+    '/inc/about-page.php',
+    '/inc/emails/setup.php',
 ];
 
 foreach ($voitkus_includes as $relative) {
@@ -761,6 +766,10 @@ function voitkus_order_received_body_class(array $classes): array
         $classes[] = 'voitkus-view-order-active';
     }
 
+    if (function_exists('is_account_page') && is_account_page()) {
+        $classes[] = 'voitkus-account-active';
+    }
+
     return $classes;
 }
 add_filter('body_class', 'voitkus_order_received_body_class');
@@ -919,16 +928,203 @@ add_action('woocommerce_cart_item_removed', 'voitkus_persist_cart_session', 20);
 add_action('woocommerce_cart_item_restored', 'voitkus_persist_cart_session', 20);
 
 /**
- * Wyłącza domyślne powiadomienie WooCommerce "Dodano do koszyka" przy dodawaniu przez AJAX.
+ * Query args, które przy odświeżeniu strony ponownie dodają produkt do koszyka.
+ *
+ * @return list<string>
+ */
+function voitkus_add_to_cart_query_keys(): array
+{
+    $keys = ['add-to-cart', 'added-to-cart', 'quantity', 'variation_id', 'product_id'];
+
+    foreach (array_keys($_GET) as $key) {
+        if (str_starts_with((string) $key, 'attribute_')) {
+            $keys[] = (string) $key;
+        }
+    }
+
+    return array_values(array_unique($keys));
+}
+
+/**
+ * @param string $url
+ */
+function voitkus_strip_add_to_cart_query_args(string $url): string
+{
+    return remove_query_arg(voitkus_add_to_cart_query_keys(), $url);
+}
+
+/**
+ * Po dodaniu przez GET (?add-to-cart=) — redirect na czysty URL (PRG).
+ * Bez tego F5 dodaje ten sam produkt ponownie.
+ */
+function voitkus_redirect_after_add_to_cart_query(): void
+{
+    if (wp_doing_ajax() || is_admin() || empty($_GET['add-to-cart'])) {
+        return;
+    }
+
+    $request_uri = isset($_SERVER['REQUEST_URI']) ? wp_unslash($_SERVER['REQUEST_URI']) : '/';
+    $clean_url   = voitkus_strip_add_to_cart_query_args($request_uri);
+
+    if ($clean_url === $request_uri) {
+        return;
+    }
+
+    wp_safe_redirect($clean_url, 303);
+    exit;
+}
+add_action('template_redirect', 'voitkus_redirect_after_add_to_cart_query', 99);
+
+/**
+ * @param string|false $url
+ * @param WC_Product|null $product
+ * @return string
+ */
+function voitkus_filter_add_to_cart_redirect($url, $product)
+{
+    if (! $url) {
+        $referer = wp_get_referer(false);
+
+        if (is_string($referer) && $referer !== '') {
+            $url = $referer;
+        } elseif ($product instanceof WC_Product) {
+            $url = $product->get_permalink();
+        } else {
+            $url = home_url('/');
+        }
+    }
+
+    return voitkus_strip_add_to_cart_query_args((string) $url);
+}
+add_filter('woocommerce_add_to_cart_redirect', 'voitkus_filter_add_to_cart_redirect', 99, 2);
+
+/**
+ * Po dodaniu zostajemy na stronie produktu (toast w product.js), nie przenosimy do koszyka.
+ */
+add_filter('woocommerce_cart_redirect_after_add', '__return_false');
+
+/**
+ * Wyłącza zielone paski WooCommerce „X dodany do koszyka” (mamy własny toast).
+ *
+ * @param mixed $message
+ * @param mixed $products
+ * @return false
  */
 function voitkus_disable_add_to_cart_message($message, $products)
 {
-    if (wp_doing_ajax() || (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest')) {
-        return false;
-    }
-    return $message;
+    unset($message, $products);
+
+    return false;
 }
 add_filter('wc_add_to_cart_message_html', 'voitkus_disable_add_to_cart_message', 10, 2);
+
+/**
+ * Czy komunikat to domyślne „produkt dodany do koszyka”.
+ */
+function voitkus_is_added_to_cart_notice_message(string $message): bool
+{
+    $lower = mb_strtolower(wp_strip_all_tags($message));
+
+    $needles = [
+        'added to your cart',
+        'has been added to your cart',
+        'have been added to your cart',
+        'dodany do koszyka',
+        'dodana do koszyka',
+        'dodane do koszyka',
+        'dodano do koszyka',
+        'został dodany do koszyka',
+        'została dodana do koszyka',
+        'zostały dodane do koszyka',
+        'zobacz koszyk',
+        'view cart',
+    ];
+
+    foreach ($needles as $needle) {
+        if (str_contains($lower, $needle)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * Usuwa z sesji zaległe komunikaty „dodano do koszyka” (np. po starym redirect do koszyka).
+ *
+ * @param array<string, array<int, mixed>> $notices
+ * @return array<string, array<int, mixed>>
+ */
+function voitkus_filter_add_to_cart_notices(array $notices): array
+{
+    foreach (['success', 'notice'] as $type) {
+        if (empty($notices[$type]) || ! is_array($notices[$type])) {
+            continue;
+        }
+
+        $notices[$type] = array_values(array_filter($notices[$type], static function ($notice): bool {
+            return ! voitkus_is_added_to_cart_notice_message(voitkus_notice_message_text($notice));
+        }));
+    }
+
+    return $notices;
+}
+add_filter('woocommerce_get_notices', 'voitkus_filter_add_to_cart_notices', 98);
+
+/**
+ * @param mixed $notice
+ */
+function voitkus_notice_message_text($notice): string
+{
+    if (is_array($notice) && isset($notice['notice'])) {
+        return (string) $notice['notice'];
+    }
+
+    if (is_string($notice)) {
+        return $notice;
+    }
+
+    return '';
+}
+
+/**
+ * Usuwa z sesji komunikaty „dodano do koszyka” (nie tylko filtr przy odczycie).
+ */
+function voitkus_purge_added_to_cart_notices_from_session(): void
+{
+    if (! function_exists('WC') || ! WC()->session) {
+        return;
+    }
+
+    $notices = WC()->session->get('wc_notices', []);
+
+    if (! is_array($notices) || $notices === []) {
+        return;
+    }
+
+    $changed = false;
+
+    foreach (['success', 'notice'] as $type) {
+        if (empty($notices[$type]) || ! is_array($notices[$type])) {
+            continue;
+        }
+
+        $filtered = array_values(array_filter($notices[$type], static function ($notice): bool {
+            return ! voitkus_is_added_to_cart_notice_message(voitkus_notice_message_text($notice));
+        }));
+
+        if (count($filtered) !== count($notices[$type])) {
+            $changed           = true;
+            $notices[$type] = $filtered;
+        }
+    }
+
+    if ($changed) {
+        WC()->session->set('wc_notices', $notices);
+    }
+}
+add_action('woocommerce_add_to_cart', 'voitkus_purge_added_to_cart_notices_from_session', 999);
+add_action('woocommerce_before_cart', 'voitkus_purge_added_to_cart_notices_from_session', 1);
 
 /**
  * Czy komunikat to domyślne „koszyk zaktualizowany” WooCommerce.
@@ -976,14 +1172,10 @@ function voitkus_filter_cart_page_notices(array $notices): array
         }
 
         $notices[$type] = array_values(array_filter($notices[$type], static function ($notice): bool {
-            $message = '';
-            if (is_array($notice) && isset($notice['notice'])) {
-                $message = (string) $notice['notice'];
-            } elseif (is_string($notice)) {
-                $message = $notice;
-            }
+            $message = voitkus_notice_message_text($notice);
 
-            return ! voitkus_is_cart_updated_notice_message($message);
+            return ! voitkus_is_cart_updated_notice_message($message)
+                && ! voitkus_is_added_to_cart_notice_message($message);
         }));
     }
 
@@ -996,9 +1188,9 @@ function voitkus_default_menu(): void
     $items = [
         __('Kawa', 'voitkus')     => home_url('/shop/'),
         __('Parzenie', 'voitkus') => home_url('/brew-guides/'),
-        __('O nas', 'voitkus')    => home_url('/about/'),
+        __('O nas', 'voitkus')    => voitkus_about_page_url(),
         __('B2B', 'voitkus')      => home_url('/b2b/'),
-        __('Kontakt', 'voitkus')  => home_url('/contact/'),
+        __('Kontakt', 'voitkus')  => voitkus_contact_page_url(),
     ];
 
     echo '<ul class="site-nav__list">';
@@ -1200,6 +1392,17 @@ function voitkus_is_order_details_context(): bool
 }
 
 /**
+ * Konto → szczegóły zamówienia: bez opisów marketingowych i specyfikacji lotu.
+ */
+function voitkus_order_line_item_compact(): bool
+{
+    return function_exists('is_account_page')
+        && is_account_page()
+        && function_exists('is_wc_endpoint_url')
+        && is_wc_endpoint_url('view-order');
+}
+
+/**
  * @return list<array{label: string, value: string}>
  */
 function voitkus_order_item_lot_specs(int $product_id, ?WC_Product $product): array
@@ -1254,15 +1457,16 @@ function voitkus_order_line_item_html($order, $item, int $item_id, bool $show_pr
 
     $rendering = true;
 
+    $compact    = voitkus_order_line_item_compact();
     $product_id = function_exists('voitkus_lot_product_id') ? voitkus_lot_product_id($product) : (int) $product->get_id();
     $title      = $item->get_name();
     $is_visible = $product->is_visible();
     $permalink  = apply_filters('woocommerce_order_item_permalink', $is_visible ? $product->get_permalink($item) : '', $item, $order);
-    $origin     = function_exists('voitkus_lot_field') ? voitkus_lot_field($product_id, 'voitkus_origin', $product) : '';
-    $hook       = function_exists('voitkus_lot_field') ? voitkus_lot_field($product_id, 'voitkus_hook', $product) : '';
-    $flavor     = function_exists('voitkus_lot_field') ? voitkus_lot_field($product_id, 'voitkus_flavor_notes', $product) : '';
-    $specs      = voitkus_order_item_lot_specs($product_id, $product);
-    $sku        = $product->get_sku();
+    $origin     = $compact || ! function_exists('voitkus_lot_field') ? '' : voitkus_lot_field($product_id, 'voitkus_origin', $product);
+    $hook       = $compact || ! function_exists('voitkus_lot_field') ? '' : voitkus_lot_field($product_id, 'voitkus_hook', $product);
+    $flavor     = $compact || ! function_exists('voitkus_lot_field') ? '' : voitkus_lot_field($product_id, 'voitkus_flavor_notes', $product);
+    $specs      = $compact ? [] : voitkus_order_item_lot_specs($product_id, $product);
+    $sku        = $compact ? '' : $product->get_sku();
     $qty        = (int) $item->get_quantity();
     $refunded   = $order->get_qty_refunded_for_item($item_id);
 
@@ -1294,7 +1498,7 @@ function voitkus_order_line_item_html($order, $item, int $item_id, bool $show_pr
 
     ob_start();
     ?>
-    <div class="voitkus-order-line<?php echo $show_price ? '' : ' voitkus-order-line--no-price'; ?>">
+    <div class="voitkus-order-line<?php echo $show_price ? '' : ' voitkus-order-line--no-price'; ?><?php echo $compact ? ' voitkus-order-line--compact' : ''; ?>">
         <div class="voitkus-order-line__media">
             <?php if ($permalink !== '') : ?>
                 <a href="<?php echo esc_url($permalink); ?>" class="voitkus-order-line__img-link">
@@ -2198,9 +2402,9 @@ function voitkus_footer_link_groups(): array
         [
             'title' => 'Voitkus',
             'links' => [
-                ['label' => __('O nas', 'voitkus'), 'url' => home_url('/about/')],
+                ['label' => __('O nas', 'voitkus'), 'url' => voitkus_about_page_url()],
                 ['label' => __('B2B', 'voitkus'), 'url' => home_url('/b2b/')],
-                ['label' => __('Kontakt', 'voitkus'), 'url' => home_url('/contact/')],
+                ['label' => __('Kontakt', 'voitkus'), 'url' => voitkus_contact_page_url()],
                 ['label' => __('Parzenie', 'voitkus'), 'url' => home_url('/brew-guides/')],
             ],
         ],
@@ -2349,7 +2553,7 @@ function voitkus_ensure_legal_pages(): void
         return;
     }
 
-    $flag = 'voitkus_legal_pages_v1';
+    $flag = 'voitkus_legal_pages_v3';
 
     if (get_option($flag) === 'done') {
         return;
@@ -2361,10 +2565,17 @@ function voitkus_ensure_legal_pages(): void
         return;
     }
 
-    $terms_id = voitkus_ensure_page('terms', 'Regulamin', '[voitkus_regulamin]', $legal_id);
+    $terms_id   = voitkus_ensure_page('terms', 'Regulamin', '[voitkus_regulamin]', $legal_id);
+    $privacy_id = voitkus_ensure_page('privacy', 'Polityka prywatności (RODO)', '[voitkus_privacy]', $legal_id);
+    voitkus_ensure_page('shipping', 'Dostawa i płatność', '[voitkus_shipping_info]', $legal_id);
 
-    if ($terms_id > 0 && class_exists('WooCommerce')) {
-        update_option('woocommerce_terms_page_id', $terms_id);
+    if (class_exists('WooCommerce')) {
+        if ($terms_id > 0) {
+            update_option('woocommerce_terms_page_id', $terms_id);
+        }
+        if ($privacy_id > 0) {
+            update_option('woocommerce_privacy_policy_page_id', $privacy_id);
+        }
     }
 
     update_option($flag, 'done', false);
@@ -2374,8 +2585,365 @@ add_action('init', 'voitkus_ensure_legal_pages', 8);
 function voitkus_register_legal_shortcodes(): void
 {
     add_shortcode('voitkus_regulamin', 'voitkus_regulamin_shortcode');
+    add_shortcode('voitkus_shipping_info', 'voitkus_shipping_info_shortcode');
+    add_shortcode('voitkus_privacy', 'voitkus_privacy_shortcode');
 }
 add_action('init', 'voitkus_register_legal_shortcodes');
+
+function voitkus_is_contact_page_slug(string $slug): bool
+{
+    return in_array($slug, ['contact', 'kontakt'], true);
+}
+
+function voitkus_is_contact_page(): bool
+{
+    if (! is_page()) {
+        return false;
+    }
+
+    $slug = (string) get_post_field('post_name', get_queried_object_id());
+
+    return voitkus_is_contact_page_slug($slug);
+}
+
+function voitkus_contact_page_url(): string
+{
+    $page_id = voitkus_find_page_by_slug('contact');
+
+    if ($page_id > 0) {
+        $url = get_permalink($page_id);
+
+        if (is_string($url) && $url !== '') {
+            return $url;
+        }
+    }
+
+    return home_url('/contact/');
+}
+
+/**
+ * @param int $contact_page_id Canonical contact page ID.
+ */
+function voitkus_sync_primary_menu_contact(int $contact_page_id): void
+{
+    if ($contact_page_id <= 0) {
+        return;
+    }
+
+    $locations = get_nav_menu_locations();
+
+    if (empty($locations['primary'])) {
+        return;
+    }
+
+    $menu_id = (int) $locations['primary'];
+    $items   = wp_get_nav_menu_items($menu_id);
+
+    if (! is_array($items)) {
+        return;
+    }
+
+    foreach ($items as $item) {
+        if (! $item instanceof WP_Post) {
+            continue;
+        }
+
+        $is_contact = false;
+
+        if ($item->type === 'post_type' && $item->object === 'page') {
+            $slug = (string) get_post_field('post_name', (int) $item->object_id);
+
+            if (voitkus_is_contact_page_slug($slug)) {
+                $is_contact = true;
+            }
+        }
+
+        if (! $is_contact && stripos(wp_strip_all_tags((string) $item->title), 'kontakt') !== false) {
+            $is_contact = true;
+        }
+
+        if (! $is_contact) {
+            continue;
+        }
+
+        if ((int) $item->object_id === $contact_page_id && $item->type === 'post_type') {
+            continue;
+        }
+
+        wp_update_nav_menu_item(
+            $menu_id,
+            (int) $item->ID,
+            [
+                'menu-item-object-id' => $contact_page_id,
+                'menu-item-object'     => 'page',
+                'menu-item-type'       => 'post_type',
+                'menu-item-status'     => 'publish',
+                'menu-item-title'      => $item->title,
+                'menu-item-position'   => (int) $item->menu_order,
+            ]
+        );
+    }
+}
+
+function voitkus_filter_contact_page_content(string $content): string
+{
+    if (! is_singular('page')) {
+        return $content;
+    }
+
+    $post = get_post();
+
+    if (! $post instanceof WP_Post || ! voitkus_is_contact_page_slug($post->post_name)) {
+        return $content;
+    }
+
+    if (has_shortcode($content, 'voitkus_contact')) {
+        return $content;
+    }
+
+    return voitkus_render_contact_page();
+}
+add_filter('the_content', 'voitkus_filter_contact_page_content', 5);
+
+function voitkus_redirect_legacy_kontakt_page(): void
+{
+    if (! is_page('kontakt')) {
+        return;
+    }
+
+    $contact_id = voitkus_find_page_by_slug('contact');
+    $kontakt_id = voitkus_find_page_by_slug('kontakt');
+
+    if ($contact_id <= 0 || $kontakt_id <= 0 || $kontakt_id === $contact_id) {
+        return;
+    }
+
+    $target = get_permalink($contact_id);
+
+    if (! is_string($target) || $target === '') {
+        return;
+    }
+
+    wp_safe_redirect($target, 301);
+    exit;
+}
+add_action('template_redirect', 'voitkus_redirect_legacy_kontakt_page');
+
+function voitkus_ensure_contact_page(): void
+{
+    if (is_admin() && ! wp_doing_ajax()) {
+        return;
+    }
+
+    $flag = 'voitkus_contact_page_v2';
+
+    if (get_option($flag) === 'done') {
+        return;
+    }
+
+    $contact_id = voitkus_ensure_page('contact', 'Kontakt', '[voitkus_contact]', 0);
+    $kontakt_id = voitkus_find_page_by_slug('kontakt');
+
+    if ($kontakt_id > 0) {
+        wp_update_post(
+            [
+                'ID'           => $kontakt_id,
+                'post_content' => '[voitkus_contact]',
+            ]
+        );
+    }
+
+    if ($contact_id > 0) {
+        voitkus_sync_primary_menu_contact($contact_id);
+    }
+
+    update_option('voitkus_contact_page_v1', 'done', false);
+    update_option($flag, 'done', false);
+}
+add_action('init', 'voitkus_ensure_contact_page', 8);
+
+function voitkus_register_contact_shortcode(): void
+{
+    add_shortcode('voitkus_contact', 'voitkus_contact_shortcode');
+}
+add_action('init', 'voitkus_register_contact_shortcode');
+
+function voitkus_is_about_page_slug(string $slug): bool
+{
+    return in_array($slug, ['about', 'o-nas'], true);
+}
+
+function voitkus_is_about_page(): bool
+{
+    if (! is_page()) {
+        return false;
+    }
+
+    $slug = (string) get_post_field('post_name', get_queried_object_id());
+
+    return voitkus_is_about_page_slug($slug);
+}
+
+function voitkus_about_page_url(): string
+{
+    $page_id = voitkus_find_page_by_slug('about');
+
+    if ($page_id > 0) {
+        $url = get_permalink($page_id);
+
+        if (is_string($url) && $url !== '') {
+            return $url;
+        }
+    }
+
+    return home_url('/about/');
+}
+
+/**
+ * @param int $about_page_id Canonical about page ID.
+ */
+function voitkus_sync_primary_menu_about(int $about_page_id): void
+{
+    if ($about_page_id <= 0) {
+        return;
+    }
+
+    $locations = get_nav_menu_locations();
+
+    if (empty($locations['primary'])) {
+        return;
+    }
+
+    $menu_id = (int) $locations['primary'];
+    $items   = wp_get_nav_menu_items($menu_id);
+
+    if (! is_array($items)) {
+        return;
+    }
+
+    foreach ($items as $item) {
+        if (! $item instanceof WP_Post) {
+            continue;
+        }
+
+        $is_about = false;
+
+        if ($item->type === 'post_type' && $item->object === 'page') {
+            $slug = (string) get_post_field('post_name', (int) $item->object_id);
+
+            if (voitkus_is_about_page_slug($slug)) {
+                $is_about = true;
+            }
+        }
+
+        if (! $is_about && stripos(wp_strip_all_tags((string) $item->title), 'o nas') !== false) {
+            $is_about = true;
+        }
+
+        if (! $is_about) {
+            continue;
+        }
+
+        if ((int) $item->object_id === $about_page_id && $item->type === 'post_type') {
+            continue;
+        }
+
+        wp_update_nav_menu_item(
+            $menu_id,
+            (int) $item->ID,
+            [
+                'menu-item-object-id' => $about_page_id,
+                'menu-item-object'     => 'page',
+                'menu-item-type'       => 'post_type',
+                'menu-item-status'     => 'publish',
+                'menu-item-title'      => $item->title,
+                'menu-item-position'   => (int) $item->menu_order,
+            ]
+        );
+    }
+}
+
+function voitkus_filter_about_page_content(string $content): string
+{
+    if (! is_singular('page')) {
+        return $content;
+    }
+
+    $post = get_post();
+
+    if (! $post instanceof WP_Post || ! voitkus_is_about_page_slug($post->post_name)) {
+        return $content;
+    }
+
+    if (has_shortcode($content, 'voitkus_about')) {
+        return $content;
+    }
+
+    return voitkus_render_about_page();
+}
+add_filter('the_content', 'voitkus_filter_about_page_content', 5);
+
+function voitkus_redirect_legacy_o_nas_page(): void
+{
+    if (! is_page('o-nas')) {
+        return;
+    }
+
+    $about_id = voitkus_find_page_by_slug('about');
+    $legacy_id = voitkus_find_page_by_slug('o-nas');
+
+    if ($about_id <= 0 || $legacy_id <= 0 || $legacy_id === $about_id) {
+        return;
+    }
+
+    $target = get_permalink($about_id);
+
+    if (! is_string($target) || $target === '') {
+        return;
+    }
+
+    wp_safe_redirect($target, 301);
+    exit;
+}
+add_action('template_redirect', 'voitkus_redirect_legacy_o_nas_page');
+
+function voitkus_ensure_about_page(): void
+{
+    if (is_admin() && ! wp_doing_ajax()) {
+        return;
+    }
+
+    $flag = 'voitkus_about_page_v1';
+
+    if (get_option($flag) === 'done') {
+        return;
+    }
+
+    $about_id = voitkus_ensure_page('about', 'O nas', '[voitkus_about]', 0);
+    $legacy_id = voitkus_find_page_by_slug('o-nas');
+
+    if ($legacy_id > 0) {
+        wp_update_post(
+            [
+                'ID'           => $legacy_id,
+                'post_content' => '[voitkus_about]',
+            ]
+        );
+    }
+
+    if ($about_id > 0) {
+        voitkus_sync_primary_menu_about($about_id);
+    }
+
+    update_option($flag, 'done', false);
+}
+add_action('init', 'voitkus_ensure_about_page', 8);
+
+function voitkus_register_about_shortcode(): void
+{
+    add_shortcode('voitkus_about', 'voitkus_about_shortcode');
+}
+add_action('init', 'voitkus_register_about_shortcode');
 
 /**
  * @return array{tagline: string, instagram: string, email: string}

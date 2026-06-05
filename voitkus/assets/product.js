@@ -191,7 +191,21 @@
     );
   }
 
-  function clearCartUpdatedNotices() {
+  function isAddedToCartNoticeText(text) {
+    var lower = (text || '').toLowerCase();
+    return (
+      lower.indexOf('added to your cart') !== -1 ||
+      lower.indexOf('dodany do koszyka') !== -1 ||
+      lower.indexOf('dodana do koszyka') !== -1 ||
+      lower.indexOf('dodane do koszyka') !== -1 ||
+      lower.indexOf('dodano do koszyka') !== -1 ||
+      lower.indexOf('został dodany do koszyka') !== -1 ||
+      lower.indexOf('zobacz koszyk') !== -1 ||
+      lower.indexOf('view cart') !== -1
+    );
+  }
+
+  function clearStaleCartNotices() {
     var wrapper = document.querySelector('.cart-page .woocommerce-notices-wrapper') ||
       document.querySelector('.woocommerce-cart .woocommerce-notices-wrapper');
 
@@ -199,8 +213,10 @@
       return;
     }
 
-    wrapper.querySelectorAll('.woocommerce-message').forEach(function (el) {
-      if (isCartUpdatedNoticeText(el.textContent)) {
+    wrapper.querySelectorAll('.woocommerce-message, .woocommerce-info').forEach(function (el) {
+      var text = el.textContent || '';
+
+      if (isCartUpdatedNoticeText(text) || isAddedToCartNoticeText(text)) {
         el.remove();
       }
     });
@@ -208,6 +224,10 @@
     if (!wrapper.textContent.trim()) {
       wrapper.innerHTML = '';
     }
+  }
+
+  function clearCartUpdatedNotices() {
+    clearStaleCartNotices();
   }
 
   function getWcAjaxUrl(endpoint) {
@@ -388,6 +408,10 @@
         showToast('Dodano do koszyka', false);
       }
     });
+  }
+
+  if (document.querySelector('.cart-page, .woocommerce-cart')) {
+    clearStaleCartNotices();
   }
 
   function showToast(message, isError) {
