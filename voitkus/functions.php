@@ -1317,6 +1317,7 @@ function voitkus_purge_added_to_cart_notices_from_session(): void
 }
 add_action('woocommerce_add_to_cart', 'voitkus_purge_added_to_cart_notices_from_session', 999);
 add_action('woocommerce_before_cart', 'voitkus_purge_added_to_cart_notices_from_session', 1);
+add_action('woocommerce_before_single_product', 'voitkus_purge_added_to_cart_notices_from_session', 0);
 
 /**
  * Czy komunikat to domyślne „koszyk zaktualizowany” WooCommerce.
@@ -1469,6 +1470,7 @@ function voitkus_purge_variation_notices_after_atc_ajax(): void
     }
 
     voitkus_purge_variation_required_notices_from_session();
+    voitkus_purge_added_to_cart_notices_from_session();
 }
 add_action('shutdown', 'voitkus_purge_variation_notices_after_atc_ajax', 5);
 
@@ -2056,6 +2058,30 @@ function voitkus_cart_fragments(array $fragments): array
 }
 add_filter('woocommerce_add_to_cart_fragments', 'voitkus_cart_fragments');
 add_filter('woocommerce_cart_fragments', 'voitkus_cart_fragments');
+
+/**
+ * Nie wstrzykuj zielonych pasków WC „dodano do koszyka” przez AJAX fragmenty (toast w product.js).
+ *
+ * @param array<string, string> $fragments
+ * @return array<string, string>
+ */
+function voitkus_strip_wc_notice_fragments(array $fragments): array
+{
+    foreach (array_keys($fragments) as $selector) {
+        $lower = strtolower($selector);
+
+        if (
+            str_contains($lower, 'woocommerce-notices')
+            || str_contains($lower, 'woocommerce-message')
+        ) {
+            unset($fragments[$selector]);
+        }
+    }
+
+    return $fragments;
+}
+add_filter('woocommerce_add_to_cart_fragments', 'voitkus_strip_wc_notice_fragments', 1000);
+add_filter('woocommerce_cart_fragments', 'voitkus_strip_wc_notice_fragments', 1000);
 
 function voitkus_customize_register(WP_Customize_Manager $wp_customize): void
 {
