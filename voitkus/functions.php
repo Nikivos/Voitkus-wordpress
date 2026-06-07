@@ -256,6 +256,7 @@ function voitkus_register_shipping_tools(): void
     add_filter('woocommerce_cart_no_shipping_available_html', 'voitkus_cart_no_shipping_message', 10, 2);
     add_filter('woocommerce_shipping_may_be_available_html', 'voitkus_shipping_enter_address_message');
     add_filter('woocommerce_no_shipping_available_html', 'voitkus_no_shipping_checkout_message');
+    add_filter('woocommerce_ship_to_different_address_checked', '__return_false');
     add_action('wp_loaded', 'voitkus_handle_reset_shipping_address', 20);
 }
 add_action('after_setup_theme', 'voitkus_register_shipping_tools', 21);
@@ -2745,9 +2746,29 @@ function voitkus_account_guest_login_close(): void
 }
 add_action('woocommerce_after_customer_login_form', 'voitkus_account_guest_login_close', 95);
 
-function voitkus_account_guest_dequeue_wc_layout(): void
+function voitkus_dequeue_wc_default_styles(): void
 {
-    if (! function_exists('is_account_page') || ! is_account_page() || is_user_logged_in()) {
+    if (! function_exists('is_woocommerce')) {
+        return;
+    }
+
+    $should_dequeue = false;
+
+    if (function_exists('is_cart') && is_cart()) {
+        $should_dequeue = true;
+    }
+
+    if (function_exists('is_checkout') && is_checkout()) {
+        if (! function_exists('is_wc_endpoint_url') || ! is_wc_endpoint_url()) {
+            $should_dequeue = true;
+        }
+    }
+
+    if (function_exists('is_account_page') && is_account_page() && ! is_user_logged_in()) {
+        $should_dequeue = true;
+    }
+
+    if (! $should_dequeue) {
         return;
     }
 
@@ -2762,32 +2783,44 @@ function voitkus_account_guest_dequeue_wc_layout(): void
         wp_deregister_style($handle);
     }
 }
-add_action('wp_enqueue_scripts', 'voitkus_account_guest_dequeue_wc_layout', 100);
+add_action('wp_enqueue_scripts', 'voitkus_dequeue_wc_default_styles', 100);
 
 /**
- * Tekst RODO przy rejestracji — zawsze po polsku (nie z rosyjskiego .mo WooCommerce).
+ * Tekst RODO (rejestracja + checkout) — zawsze po polsku (nie z rosyjskiego .mo WooCommerce).
  */
 function voitkus_registration_privacy_policy_text(string $text, string $type): string
 {
-    if ($type !== 'registration') {
-        return $text;
+    if ($type === 'registration') {
+        return 'Twoje dane osobowe będą wykorzystywane do obsługi konta, realizacji zamówień oraz innych celów opisanych w naszej [privacy_policy].';
     }
 
-    return 'Twoje dane osobowe będą wykorzystywane do obsługi konta, realizacji zamówień oraz innych celów opisanych w naszej [privacy_policy].';
+    if ($type === 'checkout') {
+        return 'Twoje dane osobowe będą wykorzystywane do realizacji zamówienia, obsługi Twojej wizyty w sklepie oraz innych celów opisanych w naszej [privacy_policy].';
+    }
+
+    return $text;
 }
 add_filter('woocommerce_get_privacy_policy_text', 'voitkus_registration_privacy_policy_text', 10, 2);
 
 function voitkus_sync_registration_privacy_text_option(): void
 {
-    if (get_option('voitkus_privacy_text_pl_v1') === 'done') {
+    if (get_option('voitkus_privacy_text_pl_v1') !== 'done') {
+        update_option(
+            'woocommerce_registration_privacy_policy_text',
+            'Twoje dane osobowe będą wykorzystywane do obsługi konta, realizacji zamówień oraz innych celów opisanych w naszej [privacy_policy].'
+        );
+        update_option('voitkus_privacy_text_pl_v1', 'done', false);
+    }
+
+    if (get_option('voitkus_privacy_text_pl_v2') === 'done') {
         return;
     }
 
     update_option(
-        'woocommerce_registration_privacy_policy_text',
-        'Twoje dane osobowe będą wykorzystywane do obsługi konta, realizacji zamówień oraz innych celów opisanych w naszej [privacy_policy].'
+        'woocommerce_checkout_privacy_policy_text',
+        'Twoje dane osobowe będą wykorzystywane do realizacji zamówienia, obsługi Twojej wizyty w sklepie oraz innych celów opisanych w naszej [privacy_policy].'
     );
-    update_option('voitkus_privacy_text_pl_v1', 'done', false);
+    update_option('voitkus_privacy_text_pl_v2', 'done', false);
 }
 add_action('init', 'voitkus_sync_registration_privacy_text_option', 7);
 
