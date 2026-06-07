@@ -115,21 +115,94 @@ function voitkus_customer_bought_product(WC_Product $product, int $user_id = 0, 
     return false;
 }
 
+function voitkus_product_reviews_guest_comments_enabled(): bool
+{
+    if (function_exists('is_product') && is_product()) {
+        return true;
+    }
+
+    if (isset($_POST['comment_post_ID'])) {
+        return get_post_type((int) wp_unslash($_POST['comment_post_ID'])) === 'product';
+    }
+
+    return false;
+}
+
+/**
+ * @param mixed $pre
+ * @return mixed
+ */
+function voitkus_product_reviews_allow_guest_comments($pre)
+{
+    if (voitkus_product_reviews_guest_comments_enabled()) {
+        return '0';
+    }
+
+    return $pre;
+}
+add_filter('pre_option_comment_registration', 'voitkus_product_reviews_allow_guest_comments');
+
+function voitkus_product_review_post_id(WC_Product $product): int
+{
+    if ($product->is_type('variation')) {
+        return (int) $product->get_parent_id();
+    }
+
+    return (int) $product->get_id();
+}
+
+function voitkus_identity_has_product_review(WC_Product $product, int $user_id = 0, string $email = ''): bool
+{
+    $post_id = voitkus_product_review_post_id($product);
+
+    if ($post_id <= 0) {
+        return false;
+    }
+
+    if ($user_id <= 0) {
+        $user_id = get_current_user_id();
+    }
+
+    if ($user_id > 0) {
+        $count = (int) get_comments(
+            [
+                'post_id'            => $post_id,
+                'user_id'            => $user_id,
+                'type'               => 'review',
+                'count'              => true,
+                'include_unapproved' => true,
+            ]
+        );
+
+        if ($count > 0) {
+            return true;
+        }
+    }
+
+    if ($email === '' || ! is_email($email)) {
+        return false;
+    }
+
+    return (int) get_comments(
+        [
+            'post_id'            => $post_id,
+            'author_email'       => $email,
+            'type'               => 'review',
+            'count'              => true,
+            'include_unapproved' => true,
+        ]
+    ) > 0;
+}
+
 function voitkus_product_can_review(?WC_Product $product = null): bool
 {
     if (! $product instanceof WC_Product) {
         $product = wc_get_product(get_the_ID());
     }
 
-    if (! $product instanceof WC_Product || ! comments_open()) {
-        return false;
-    }
-
-    if (get_option('woocommerce_review_rating_verification_required') !== 'yes') {
-        return true;
-    }
-
-    return voitkus_customer_bought_product($product);
+    return $product instanceof WC_Product
+        && $product->get_reviews_allowed()
+        && comments_open((int) $product->get_id());
 }
 
 function voitkus_product_reviews_enabled(WC_Product $product): bool
@@ -293,17 +366,21 @@ function voitkus_product_review_form_args(): array
     $commenter    = wp_get_current_commenter();
     $comment_form = [
         /* translators: %s: product title */
-        'title_reply'         => voitkus_product_has_review_comments()
+        'title_reply'          => voitkus_product_has_review_comments()
             ? esc_html__('Dodaj opinię', 'voitkus')
             : sprintf(esc_html__('Napisz pierwszą opinię o „%s”', 'voitkus'), get_the_title()),
-        'title_reply_to'      => esc_html__('Odpowiedz na opinię %s', 'voitkus'),
-        'title_reply_before'  => '<h3 id="reply-title" class="product-reviews__form-title">',
-        'title_reply_after'   => '</h3>',
-        'comment_notes_after' => '',
-        'label_submit'        => esc_html__('Wyślij opinię', 'voitkus'),
-        'logged_in_as'        => '',
-        'comment_field'       => '',
-        'class_form'          => 'product-reviews__comment-form comment-form',
+        'title_reply_to'       => esc_html__('Odpowiedz na opinię %s', 'voitkus'),
+        'title_reply_before'   => '<h3 id="reply-title" class="product-reviews__form-title">',
+        'title_reply_after'    => '</h3>',
+        'comment_notes_before' => '<p class="product-reviews__moderation-note">'
+            . esc_html__('Opinia pojawi się po akceptacji. Kupiłeś online, próbowałeś w kawiarni lub gdzie indziej — podziel się wrażeniami o tej kawie.', 'voitkus')
+            . '</p>',
+        'comment_notes_after'  => '',
+        'label_submit'         => esc_html__('Wyślij opinię', 'voitkus'),
+        'logged_in_as'         => '',
+        'must_log_in'          => '',
+        'comment_field'        => '',
+        'class_form'           => 'product-reviews__comment-form comment-form',
     ];
 
     $name_email_required = (bool) get_option('require_name_email', 1);
@@ -342,18 +419,6 @@ function voitkus_product_review_form_args(): array
         }
     }
 
-    $account_page_url = wc_get_page_permalink('myaccount');
-
-    if ($account_page_url) {
-        $comment_form['must_log_in'] = '<p class="must-log-in product-reviews__login">'
-            . sprintf(
-                esc_html__('Musisz być %1$szalogowany%2$s, aby dodać opinię.', 'voitkus'),
-                '<a href="' . esc_url($account_page_url) . '">',
-                '</a>'
-            )
-            . '</p>';
-    }
-
     $comment_form['comment_field'] = '';
 
     $comment_form = apply_filters('woocommerce_product_review_comment_form_args', $comment_form);
@@ -377,27 +442,27 @@ function voitkus_render_product_review_form(?WC_Product $product = null, bool $c
     $wrap_class = $compact ? 'product-reviews__form-wrap--compact' : 'product-reviews__form-wrap--full';
 
     if (! voitkus_product_can_review($product)) {
-        echo '<p class="product-reviews__verified-only">'
-            . esc_html__('Opinie mogą dodawać tylko klienci, którzy kupili ten produkt.', 'voitkus')
-            . '</p>';
+        return;
+    }
 
-        if (! is_user_logged_in()) {
-            $account_page_url = wc_get_page_permalink('myaccount');
+    $user_id = get_current_user_id();
+    $email   = '';
 
-            if ($account_page_url) {
-                echo '<p class="product-reviews__verified-hint">'
-                    . sprintf(
-                        esc_html__('Zaloguj się na konto użyte przy zamówieniu: %1$szaloguj%2$s.', 'voitkus'),
-                        '<a href="' . esc_url($account_page_url) . '">',
-                        '</a>'
-                    )
-                    . '</p>';
-            }
-        } else {
-            echo '<p class="product-reviews__verified-hint">'
-                . esc_html__('Opinia będzie dostępna po opłaceniu zamówienia (status: w realizacji lub zrealizowane).', 'voitkus')
-                . '</p>';
+    if ($user_id > 0) {
+        $user = get_user_by('id', $user_id);
+
+        if ($user instanceof WP_User && is_email($user->user_email)) {
+            $email = $user->user_email;
         }
+    } else {
+        $commenter = wp_get_current_commenter();
+        $email     = isset($commenter['comment_author_email']) ? (string) $commenter['comment_author_email'] : '';
+    }
+
+    if (voitkus_identity_has_product_review($product, $user_id, $email)) {
+        echo '<p class="product-reviews__verified-only">'
+            . esc_html__('Twoja opinia o tym produkcie została już wysłana i oczekuje na publikację lub jest już widoczna.', 'voitkus')
+            . '</p>';
 
         return;
     }
@@ -456,3 +521,133 @@ function voitkus_render_product_review_list(): void
 
     echo '</div>';
 }
+
+function voitkus_product_review_is_submission(int $post_id): bool
+{
+    return $post_id > 0
+        && get_post_type($post_id) === 'product'
+        && isset($_POST['rating'])
+        && absint(wp_unslash($_POST['rating'])) >= 1;
+}
+
+/**
+ * @param array<string, mixed> $commentdata
+ * @return array<string, mixed>
+ */
+function voitkus_product_review_preprocess_comment(array $commentdata): array
+{
+    $post_id = (int) ($commentdata['comment_post_ID'] ?? 0);
+
+    if (! voitkus_product_review_is_submission($post_id)) {
+        return $commentdata;
+    }
+
+    $product = wc_get_product($post_id);
+
+    if (! $product instanceof WC_Product) {
+        return $commentdata;
+    }
+
+    $rating = absint(wp_unslash($_POST['rating']));
+
+    if ($rating < 1 || $rating > 5) {
+        wp_die(
+            esc_html__('Wybierz ocenę od 1 do 5 gwiazdek.', 'voitkus'),
+            esc_html__('Opinia o produkcie', 'voitkus'),
+            ['response' => 400, 'back_link' => true]
+        );
+    }
+
+    $user_id = get_current_user_id();
+    $email   = isset($commentdata['comment_author_email']) ? sanitize_email((string) $commentdata['comment_author_email']) : '';
+
+    if ($user_id <= 0 && ($email === '' || ! is_email($email))) {
+        wp_die(
+            esc_html__('Podaj poprawny adres e-mail.', 'voitkus'),
+            esc_html__('Opinia o produkcie', 'voitkus'),
+            ['response' => 400, 'back_link' => true]
+        );
+    }
+
+    if (voitkus_identity_has_product_review($product, $user_id, $email)) {
+        wp_die(
+            esc_html__('Już przesłałeś opinię o tym produkcie.', 'voitkus'),
+            esc_html__('Opinia o produkcie', 'voitkus'),
+            ['response' => 403, 'back_link' => true]
+        );
+    }
+
+    $user = wp_get_current_user();
+
+    if ($user instanceof WP_User && $user_id > 0) {
+        if (trim((string) ($commentdata['comment_author'] ?? '')) === '') {
+            $commentdata['comment_author'] = $user->display_name !== '' ? $user->display_name : $user->user_login;
+        }
+
+        $commentdata['comment_author_email'] = $user->user_email;
+    }
+
+    $commentdata['comment_type'] = 'review';
+
+    return $commentdata;
+}
+add_filter('preprocess_comment', 'voitkus_product_review_preprocess_comment');
+
+function voitkus_product_review_save_meta(int $comment_id, $approved, $commentdata = []): void
+{
+    $comment = get_comment($comment_id);
+
+    if (! $comment instanceof WP_Comment || get_post_type((int) $comment->comment_post_ID) !== 'product') {
+        return;
+    }
+
+    if ((string) $comment->comment_type !== 'review') {
+        return;
+    }
+
+    $product = wc_get_product((int) $comment->comment_post_ID);
+
+    if (! $product instanceof WC_Product) {
+        return;
+    }
+
+    if (voitkus_customer_bought_product($product, (int) $comment->user_id, (string) $comment->comment_author_email)) {
+        update_comment_meta($comment_id, 'verified', '1');
+    }
+}
+add_action('comment_post', 'voitkus_product_review_save_meta', 10, 3);
+
+/**
+ * @param int|string $approved
+ * @param array<string, mixed> $commentdata
+ * @return int|string
+ */
+function voitkus_product_review_moderation($approved, array $commentdata)
+{
+    $post_id = (int) ($commentdata['comment_post_ID'] ?? 0);
+
+    if (! voitkus_product_review_is_submission($post_id)) {
+        return $approved;
+    }
+
+    $product = wc_get_product($post_id);
+
+    if (! $product instanceof WC_Product) {
+        return $approved;
+    }
+
+    $email = isset($commentdata['comment_author_email']) ? sanitize_email((string) $commentdata['comment_author_email']) : '';
+
+    if (voitkus_customer_bought_product($product, get_current_user_id(), $email)) {
+        return $approved;
+    }
+
+    return 0;
+}
+add_filter('pre_comment_approved', 'voitkus_product_review_moderation', 10, 2);
+
+function voitkus_product_reviews_disable_verification_required(string $value): string
+{
+    return 'no';
+}
+add_filter('option_woocommerce_review_rating_verification_required', 'voitkus_product_reviews_disable_verification_required');

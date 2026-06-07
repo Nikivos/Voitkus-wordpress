@@ -13,6 +13,7 @@ $voitkus_includes = [
     '/inc/lots.php',
     '/inc/product-meta.php',
     '/inc/product-reviews.php',
+    '/inc/brand-reviews.php',
     '/inc/legal/regulamin.php',
     '/inc/legal/shipping.php',
     '/inc/legal/privacy.php',
@@ -2569,133 +2570,6 @@ function voitkus_customize_register_founder(WP_Customize_Manager $wp_customize):
             'label'   => $label,
             'section' => 'voitkus_founder',
             'type'    => $type,
-        ]);
-    }
-}
-
-/**
- * @return array{eyebrow: string, title: string, items: array<int, array{quote: string, author: string, accent: string}>}
- */
-function voitkus_reviews_defaults(): array
-{
-    return [
-        'eyebrow' => 'Opinie',
-        'title'   => 'Co mówią klienci',
-        'items'   => [
-            [
-                'quote'  => 'Pierwsza Etiopia która smakowała jak jagody.',
-                'author' => 'Klient Voitkus',
-                'accent' => 'magenta',
-            ],
-            [
-                'quote'  => 'Najlepsze espresso jakie zrobiłem w domu.',
-                'author' => 'Klient Voitkus',
-                'accent' => 'orange',
-            ],
-            [
-                'quote'  => 'Świetnie opisane profile.',
-                'author' => 'Klient Voitkus',
-                'accent' => 'cyan',
-            ],
-        ],
-    ];
-}
-
-function voitkus_reviews_section(): array
-{
-    $defaults = voitkus_reviews_defaults();
-    $items    = [];
-
-    foreach ($defaults['items'] as $index => $default_item) {
-        $n = $index + 1;
-
-        $quote = trim((string) get_theme_mod("voitkus_review_{$n}_quote", $default_item['quote']));
-
-        if ($quote === '') {
-            continue;
-        }
-
-        $items[] = [
-            'quote'  => $quote,
-            'author' => trim((string) get_theme_mod("voitkus_review_{$n}_author", $default_item['author'])),
-            'accent' => voitkus_sanitize_why_accent(get_theme_mod("voitkus_review_{$n}_accent", $default_item['accent'])),
-        ];
-    }
-
-    return [
-        'eyebrow' => (string) get_theme_mod('voitkus_reviews_eyebrow', $defaults['eyebrow']),
-        'title'   => (string) get_theme_mod('voitkus_reviews_title', $defaults['title']),
-        'items'   => $items,
-    ];
-}
-
-function voitkus_customize_register_reviews(WP_Customize_Manager $wp_customize): void
-{
-    $defaults = voitkus_reviews_defaults();
-
-    $wp_customize->add_section('voitkus_reviews', [
-        'title'    => __('Opinie klientów (strona główna)', 'voitkus'),
-        'priority' => 34,
-    ]);
-
-    $header_fields = [
-        'voitkus_reviews_eyebrow' => [__('Eyebrow', 'voitkus'), $defaults['eyebrow']],
-        'voitkus_reviews_title'   => [__('Nagłówek sekcji', 'voitkus'), $defaults['title']],
-    ];
-
-    foreach ($header_fields as $key => $field) {
-        $wp_customize->add_setting($key, [
-            'default'           => $field[1],
-            'sanitize_callback' => 'sanitize_text_field',
-        ]);
-
-        $wp_customize->add_control($key, [
-            'label'   => $field[0],
-            'section' => 'voitkus_reviews',
-            'type'    => 'text',
-        ]);
-    }
-
-    foreach ($defaults['items'] as $index => $item) {
-        $n     = $index + 1;
-        $label = sprintf(
-            /* translators: %d: review number (1–3) */
-            __('Opinia %d', 'voitkus'),
-            $n
-        );
-
-        $wp_customize->add_setting("voitkus_review_{$n}_quote", [
-            'default'           => $item['quote'],
-            'sanitize_callback' => 'sanitize_textarea_field',
-        ]);
-
-        $wp_customize->add_control("voitkus_review_{$n}_quote", [
-            'label'   => $label . ' — ' . __('cytat', 'voitkus'),
-            'section' => 'voitkus_reviews',
-            'type'    => 'textarea',
-        ]);
-
-        $wp_customize->add_setting("voitkus_review_{$n}_author", [
-            'default'           => $item['author'],
-            'sanitize_callback' => 'sanitize_text_field',
-        ]);
-
-        $wp_customize->add_control("voitkus_review_{$n}_author", [
-            'label'   => $label . ' — ' . __('autor', 'voitkus'),
-            'section' => 'voitkus_reviews',
-            'type'    => 'text',
-        ]);
-
-        $wp_customize->add_setting("voitkus_review_{$n}_accent", [
-            'default'           => $item['accent'],
-            'sanitize_callback' => 'voitkus_sanitize_why_accent',
-        ]);
-
-        $wp_customize->add_control("voitkus_review_{$n}_accent", [
-            'label'   => $label . ' — ' . __('kolor akcentu', 'voitkus'),
-            'section' => 'voitkus_reviews',
-            'type'    => 'select',
-            'choices' => voitkus_why_lot_accents(),
         ]);
     }
 }

@@ -67,7 +67,7 @@
       { root: '.lots', targets: ['.lots__header', '.lots__grid'] },
       { root: '.grind', targets: ['.grind__layout'] },
       { root: '.founder', targets: ['.founder__layout'] },
-      { root: '.reviews', targets: ['.reviews__header', '.reviews__grid'] },
+      { root: '.reviews', targets: ['.reviews__disclosure'] },
     ];
 
     var staggerSelectors = '.profiles__grid, .why__grid, .lots__grid, .reviews__grid, .founder__layout, .grind__layout';
