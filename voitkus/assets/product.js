@@ -1,32 +1,147 @@
 (function () {
-  var galleries = document.querySelectorAll('[data-product-gallery]');
+  function initProductGalleries() {
+    var galleries = document.querySelectorAll('[data-product-gallery]');
 
-  galleries.forEach(function (gallery) {
-    var main = gallery.querySelector('.product-page__gallery-img');
-    var thumbs = gallery.querySelectorAll('.product-page__gallery-thumb');
+    galleries.forEach(function (gallery) {
+      if (gallery.dataset.voitkusGalleryReady === '1') {
+        return;
+      }
 
-    if (!main || !thumbs.length) {
-      return;
-    }
+      var main = gallery.querySelector('.product-page__gallery-img');
+      var stage = gallery.querySelector('.product-page__gallery-stage');
+      var thumbs = Array.prototype.slice.call(gallery.querySelectorAll('.product-page__gallery-thumb'));
+      var prevBtn = gallery.querySelector('.product-page__gallery-nav--prev');
+      var nextBtn = gallery.querySelector('.product-page__gallery-nav--next');
+      var counter = gallery.querySelector('.product-page__gallery-counter');
 
-    thumbs.forEach(function (thumb) {
-      thumb.addEventListener('click', function () {
-        var fullSrc = thumb.getAttribute('data-full-src');
+      if (!main || !thumbs.length) {
+        return;
+      }
 
-        if (!fullSrc) {
-          return;
+      var slides = thumbs
+        .map(function (thumb) {
+          return thumb.getAttribute('data-full-src') || '';
+        })
+        .filter(function (src) {
+          return src !== '';
+        });
+
+      if (!slides.length) {
+        return;
+      }
+
+      gallery.dataset.voitkusGalleryReady = '1';
+
+      var index = 0;
+      var touchStartX = 0;
+      var touchStartY = 0;
+      var touchTracking = false;
+
+      function prefersReducedMotionLocal() {
+        return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      }
+
+      function setSlide(nextIndex) {
+        index = (nextIndex + slides.length) % slides.length;
+        main.setAttribute('src', slides[index]);
+
+        thumbs.forEach(function (thumb, thumbIndex) {
+          var isActive = thumbIndex === index;
+          thumb.classList.toggle('is-active', isActive);
+          thumb.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+        });
+
+        if (counter) {
+          counter.textContent = (index + 1) + ' / ' + slides.length;
         }
 
-        main.setAttribute('src', fullSrc);
-        thumbs.forEach(function (item) {
-          item.classList.remove('is-active');
-          item.setAttribute('aria-pressed', 'false');
+        var activeThumb = thumbs[index];
+
+        if (activeThumb && typeof activeThumb.scrollIntoView === 'function') {
+          activeThumb.scrollIntoView({
+            behavior: prefersReducedMotionLocal() ? 'auto' : 'smooth',
+            block: 'nearest',
+            inline: 'nearest',
+          });
+        }
+      }
+
+      function step(delta) {
+        setSlide(index + delta);
+      }
+
+      thumbs.forEach(function (thumb, thumbIndex) {
+        thumb.addEventListener('click', function () {
+          setSlide(thumbIndex);
         });
-        thumb.classList.add('is-active');
-        thumb.setAttribute('aria-pressed', 'true');
+      });
+
+      if (prevBtn) {
+        prevBtn.addEventListener('click', function () {
+          step(-1);
+        });
+      }
+
+      if (nextBtn) {
+        nextBtn.addEventListener('click', function () {
+          step(1);
+        });
+      }
+
+      if (stage) {
+        stage.addEventListener(
+          'touchstart',
+          function (event) {
+            if (!event.touches || event.touches.length !== 1) {
+              return;
+            }
+
+            touchStartX = event.touches[0].clientX;
+            touchStartY = event.touches[0].clientY;
+            touchTracking = true;
+          },
+          { passive: true }
+        );
+
+        stage.addEventListener(
+          'touchend',
+          function (event) {
+            if (!touchTracking || !event.changedTouches || !event.changedTouches.length) {
+              return;
+            }
+
+            touchTracking = false;
+
+            var deltaX = event.changedTouches[0].clientX - touchStartX;
+            var deltaY = event.changedTouches[0].clientY - touchStartY;
+
+            if (Math.abs(deltaX) < 40 || Math.abs(deltaX) < Math.abs(deltaY)) {
+              return;
+            }
+
+            step(deltaX < 0 ? 1 : -1);
+          },
+          { passive: true }
+        );
+      }
+
+      gallery.setAttribute('tabindex', '0');
+
+      gallery.addEventListener('keydown', function (event) {
+        if (event.key === 'ArrowLeft') {
+          event.preventDefault();
+          step(-1);
+        }
+
+        if (event.key === 'ArrowRight') {
+          event.preventDefault();
+          step(1);
+        }
       });
     });
-  });
+  }
+
+  initProductGalleries();
 
   var cartQtyUpdateTimer = null;
   var cartUpdating = false;
@@ -214,10 +329,14 @@
       return;
     }
 
-    wrapper.querySelectorAll('.woocommerce-message, .woocommerce-info').forEach(function (el) {
+    wrapper.querySelectorAll('.woocommerce-message, .woocommerce-info, .woocommerce-error').forEach(function (el) {
       var text = el.textContent || '';
 
-      if (isCartUpdatedNoticeText(text) || isAddedToCartNoticeText(text)) {
+      if (
+        isCartUpdatedNoticeText(text) ||
+        isAddedToCartNoticeText(text) ||
+        isVariationRequiredNoticeText(text)
+      ) {
         el.remove();
       }
     });
@@ -247,6 +366,213 @@
     }
 
     return window.location.origin + '/?wc-ajax=' + endpoint;
+  }
+
+  function isVariationRequiredNoticeText(text) {
+    var lower = (text || '').toLowerCase();
+
+    return (
+      lower.indexOf('prosimy wybra') !== -1 ||
+      lower.indexOf('proszę wybra') !== -1 ||
+      lower.indexOf('prosze wybra') !== -1 ||
+      lower.indexOf('wybierz opcje') !== -1 ||
+      lower.indexOf('wybrać opcje') !== -1 ||
+      lower.indexOf('wybrac opcje') !== -1 ||
+      lower.indexOf('please choose product options') !== -1 ||
+      lower.indexOf('choose product options') !== -1 ||
+      lower.indexOf('przechodząc do produktu') !== -1 ||
+      lower.indexOf('przechodzac do produktu') !== -1 ||
+      (lower.indexOf('przed dodaniem') !== -1 && lower.indexOf('opcje') !== -1) ||
+      (lower.indexOf('przechodz') !== -1 && lower.indexOf('opcje') !== -1)
+    );
+  }
+
+  function isMielenieAttributeName(name) {
+    if (!name) {
+      return false;
+    }
+
+    var normalized = name.replace(/^attribute_/, '').toLowerCase();
+
+    return normalized === 'mielenie' || normalized === 'pa_mielenie' || normalized === 'pa-mielenie';
+  }
+
+  function ensureHiddenMielenieSelected($form) {
+    if (!$form || !$form.length) {
+      return;
+    }
+
+    $form.find('.variations select').each(function () {
+      var $select = jQuery(this);
+      var name = $select.attr('name') || '';
+
+      if (!isMielenieAttributeName(name) || $select.val()) {
+        return;
+      }
+
+      var $option = $select.find('option[value!=""]').first();
+
+      if ($option.length) {
+        $select.val($option.val());
+      }
+    });
+  }
+
+  function getVariationRequiredMessage($form) {
+    if ($form && $form.find('.variations select[name="attribute_pa_waga"], .variations select[name="attribute_waga"]').length) {
+      return 'Wybierz wagę przed dodaniem do koszyka.';
+    }
+
+    return 'Wybierz opcje produktu przed dodaniem do koszyka.';
+  }
+
+  function showVariationRequiredToast($form) {
+    showToast(getVariationRequiredMessage($form), true);
+  }
+
+  function getProductVariations($form) {
+    var raw = $form.data('product_variations');
+
+    return Array.isArray(raw) ? raw : [];
+  }
+
+  function collectFormAttributes($form) {
+    var attributes = {};
+
+    $form.find('.variations select').each(function () {
+      var name = jQuery(this).attr('name');
+
+      if (name) {
+        attributes[name] = jQuery(this).val() || '';
+      }
+    });
+
+    return attributes;
+  }
+
+  function variationAttributesMatch(definition, selected) {
+    var key;
+
+    for (key in definition) {
+      if (!Object.prototype.hasOwnProperty.call(definition, key)) {
+        continue;
+      }
+
+      var expected = definition[key];
+
+      if (expected === '' || expected === undefined) {
+        continue;
+      }
+
+      if ((selected[key] || '') !== '' && selected[key] !== expected) {
+        return false;
+      }
+    }
+
+    for (key in selected) {
+      if (!Object.prototype.hasOwnProperty.call(selected, key)) {
+        continue;
+      }
+
+      if (!selected[key]) {
+        continue;
+      }
+
+      if (
+        definition[key] !== undefined
+        && definition[key] !== ''
+        && definition[key] !== selected[key]
+      ) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  function syncVariationFields($form, variation) {
+    if (!variation || !variation.variation_id) {
+      return;
+    }
+
+    $form.find('input.variation_id, input[name="variation_id"]').val(String(variation.variation_id));
+
+    Object.keys(variation.attributes || {}).forEach(function (key) {
+      var value = variation.attributes[key];
+
+      if (!value) {
+        return;
+      }
+
+      var $select = $form.find('.variations select[name="' + key + '"]');
+
+      if ($select.length && $select.val() !== value) {
+        $select.val(value);
+      }
+    });
+  }
+
+  function resolveVariationFromForm($form) {
+    ensureHiddenMielenieSelected($form);
+
+    var parsedId = parseInt($form.find('input.variation_id, input[name="variation_id"]').val(), 10);
+
+    if (Number.isFinite(parsedId) && parsedId > 0) {
+      return parsedId;
+    }
+
+    var variations = getProductVariations($form);
+
+    if (!variations.length) {
+      return 0;
+    }
+
+    var selected = collectFormAttributes($form);
+    var hasVisibleSelection = Object.keys(selected).some(function (key) {
+      if (isMielenieAttributeName(key)) {
+        return false;
+      }
+
+      return selected[key] !== '';
+    });
+
+    if (!hasVisibleSelection) {
+      return 0;
+    }
+
+    var match = null;
+
+    variations.forEach(function (variation) {
+      if (match || !variation || !variation.variation_id) {
+        return;
+      }
+
+      if (variation.is_in_stock === false || variation.is_purchasable === false) {
+        return;
+      }
+
+      if (!variationAttributesMatch(variation.attributes || {}, selected)) {
+        return;
+      }
+
+      match = variation;
+    });
+
+    if (!match) {
+      return 0;
+    }
+
+    syncVariationFields($form, match);
+
+    return parseInt(match.variation_id, 10);
+  }
+
+  function hasSelectedVariation($form) {
+    if (!$form || !$form.length || !$form.hasClass('variations_form')) {
+      return true;
+    }
+
+    return resolveVariationFromForm($form) > 0;
   }
 
   function shouldAjaxAddFromForm($form) {
@@ -283,12 +609,19 @@
     var $button = jQuery(buttonEl);
     var $form = $button.closest('form.cart');
 
-    if (!$form.length || !shouldAjaxAddFromForm($form)) {
+    if (!$form.length) {
       return;
     }
 
     event.preventDefault();
     event.stopPropagation();
+    event.stopImmediatePropagation();
+
+    if (!hasSelectedVariation($form)) {
+      showVariationRequiredToast($form);
+      return;
+    }
+
     voitkusAjaxAddToCart($form, $button);
   }
 
@@ -503,24 +836,56 @@
   }
 
   function buildAddToCartData($form) {
-    var data = {
-      product_id: $form.find('[name="add-to-cart"]').val() || $form.find('input[name="product_id"]').val(),
-      quantity: $form.find('input.qty').val() || 1,
-    };
+    ensureHiddenMielenieSelected($form);
+
+    var variationId = 0;
 
     if ($form.hasClass('variations_form')) {
-      data.variation_id = $form.find('input.variation_id, input[name="variation_id"]').val() || 0;
+      variationId = resolveVariationFromForm($form);
 
-      $form.find('.variations select').each(function () {
-        var name = jQuery(this).attr('name');
-
-        if (name) {
-          data[name] = jQuery(this).val();
-        }
-      });
+      if (variationId <= 0) {
+        return null;
+      }
     }
 
-    return data;
+    var payload = {};
+    var fields = $form.serializeArray();
+
+    fields.forEach(function (field) {
+      if (field.name.indexOf('attribute_') === 0 && !field.value) {
+        return;
+      }
+
+      payload[field.name] = field.value;
+    });
+
+    if (variationId > 0) {
+      // Custom attribute "waga" on prod: parent+variation_id POST fails WC validation.
+      // Adding by variation ID matches native WC shortcut and works reliably.
+      payload.product_id = String(variationId);
+      delete payload.variation_id;
+
+      Object.keys(payload).forEach(function (key) {
+        if (key.indexOf('attribute_') === 0) {
+          delete payload[key];
+        }
+      });
+    } else if (!payload.product_id) {
+      var parentId = $form.find('input[name="product_id"]').val() || $form.data('product_id');
+
+      if (parentId) {
+        payload.product_id = String(parentId);
+      } else if (payload['add-to-cart']) {
+        payload.product_id = payload['add-to-cart'];
+      }
+    }
+
+    if (!payload.quantity) {
+      var qty = $form.find('input.qty').val();
+      payload.quantity = qty || 1;
+    }
+
+    return payload;
   }
 
   function voitkusAjaxAddToCart($form, $button) {
@@ -530,11 +895,9 @@
 
     var data = buildAddToCartData($form);
 
-    if (!data.product_id) {
-      return false;
-    }
-
-    if ($form.hasClass('variations_form') && (!data.variation_id || data.variation_id === '0')) {
+    if (!data || !data.product_id) {
+      setAddToCartLoading($button, false);
+      showVariationRequiredToast($form);
       return false;
     }
 
@@ -546,6 +909,7 @@
       type: 'POST',
       url: getWcAjaxUrl('add_to_cart'),
       data: data,
+      dataType: 'json',
       success: function (response) {
         var payload = parseJsonResponse(response);
 
@@ -555,8 +919,9 @@
           return;
         }
 
-        if (payload.error && payload.product_url) {
-          window.location.href = payload.product_url;
+        if (payload.error) {
+          setAddToCartLoading($button, false);
+          showToast('Nie udało się dodać do koszyka', true);
           return;
         }
 
@@ -752,6 +1117,10 @@
       return;
     }
 
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+
     if (typeof jQuery === 'undefined') {
       return;
     }
@@ -759,14 +1128,47 @@
     var $form = jQuery(form);
     var $button = $form.find('.single_add_to_cart_button');
 
-    if (!$button.length || !shouldAjaxAddFromForm($form)) {
+    if (!hasSelectedVariation($form)) {
+      showVariationRequiredToast($form);
       return;
     }
 
-    event.preventDefault();
-    event.stopPropagation();
+    if (!$button.length) {
+      return;
+    }
+
     voitkusAjaxAddToCart($form, $button);
   }, true);
+
+  if (typeof jQuery !== 'undefined') {
+    jQuery(function ($) {
+      $('.product-page__purchase form.variations_form').each(function () {
+        var $form = $(this);
+
+        ensureHiddenMielenieSelected($form);
+
+        $form.on('woocommerce_variation_has_changed', function () {
+          ensureHiddenMielenieSelected($form);
+
+          var variationId = parseInt($form.find('input.variation_id, input[name="variation_id"]').val(), 10);
+
+          if (!Number.isFinite(variationId) || variationId <= 0) {
+            resolveVariationFromForm($form);
+          }
+        });
+
+        $form.find('.variations select[name="attribute_pa_waga"], .variations select[name="attribute_waga"]').on('change', function () {
+          ensureHiddenMielenieSelected($form);
+        });
+
+        $form.find('.variations select').each(function () {
+          if ($(this).val()) {
+            $(this).trigger('change');
+          }
+        });
+      });
+    });
+  }
 
   if (typeof jQuery !== 'undefined') {
     jQuery(document.body).on('wc_fragments_ajax_start', function () {

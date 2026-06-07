@@ -949,6 +949,12 @@ function voitkus_enqueue_product_cart_assets(): void
     ) {
         wp_enqueue_script('wc-add-to-cart');
         $product_deps[] = 'wc-add-to-cart';
+
+        if (function_exists('is_product') && is_product()) {
+            wp_enqueue_script('wc-add-to-cart-variation');
+            $product_deps[] = 'wc-add-to-cart-variation';
+        }
+
         wp_enqueue_script('wc-cart-fragments');
     }
 
@@ -1340,6 +1346,130 @@ function voitkus_is_cart_updated_notice_message(string $message): bool
     return false;
 }
 
+function voitkus_is_variation_required_notice_message(string $message): bool
+{
+    $lower = mb_strtolower(wp_strip_all_tags($message));
+
+    $needles = [
+        'prosimy wybra',
+        'proszę wybra',
+        'prosze wybra',
+        'wybierz opcje',
+        'wybrać opcje',
+        'wybrac opcje',
+        'please choose product options',
+        'choose product options',
+        'przechodząc do produktu',
+        'przechodzac do produktu',
+    ];
+
+    foreach ($needles as $needle) {
+        if (str_contains($lower, $needle)) {
+            return true;
+        }
+    }
+
+    return (str_contains($lower, 'przed dodaniem') || str_contains($lower, 'przechodz')) && str_contains($lower, 'opcje');
+}
+
+function voitkus_purge_variation_required_notices_from_session(): void
+{
+    if (! function_exists('WC') || ! WC()->session) {
+        return;
+    }
+
+    $notices = WC()->session->get('wc_notices', []);
+
+    if (! is_array($notices) || $notices === []) {
+        return;
+    }
+
+    $changed = false;
+
+    foreach (['error', 'notice'] as $type) {
+        if (empty($notices[$type]) || ! is_array($notices[$type])) {
+            continue;
+        }
+
+        $filtered = array_values(array_filter($notices[$type], static function ($notice): bool {
+            return ! voitkus_is_variation_required_notice_message(voitkus_notice_message_text($notice));
+        }));
+
+        if (count($filtered) !== count($notices[$type])) {
+            $changed        = true;
+            $notices[$type] = $filtered;
+        }
+    }
+
+    if ($changed) {
+        WC()->session->set('wc_notices', $notices);
+    }
+}
+add_action('woocommerce_before_cart', 'voitkus_purge_variation_required_notices_from_session', 0);
+add_action('woocommerce_before_single_product', 'voitkus_purge_variation_required_notices_from_session', 0);
+
+/**
+ * Ajax add-to-cart: uzupełnia brakujące atrybuty wariantu (mielenie ukryte w UI).
+ */
+function voitkus_autofill_variation_attributes_from_post(): void
+{
+    if (empty($_POST['variation_id'])) {
+        return;
+    }
+
+    $variation_id = absint($_POST['variation_id']);
+
+    if ($variation_id <= 0) {
+        return;
+    }
+
+    $variation = wc_get_product($variation_id);
+
+    if (! $variation instanceof WC_Product_Variation) {
+        return;
+    }
+
+    if (empty($_POST['product_id'])) {
+        $_POST['product_id'] = (string) $variation->get_parent_id();
+    }
+
+    foreach ($variation->get_variation_attributes() as $attribute_name => $attribute_value) {
+        if ($attribute_value === '') {
+            continue;
+        }
+
+        $post_key = 'attribute_' . sanitize_title($attribute_name);
+
+        if (empty($_POST[$post_key])) {
+            $_POST[$post_key] = $attribute_value;
+        }
+    }
+}
+add_action('wc_ajax_add_to_cart', 'voitkus_autofill_variation_attributes_from_post', 0);
+
+/**
+ * Ajax add-to-cart zapisuje błąd w sesji — usuwamy go (toast na stronie produktu).
+ */
+function voitkus_purge_variation_notices_after_atc_ajax(): void
+{
+    if (! wp_doing_ajax()) {
+        return;
+    }
+
+    $action = '';
+
+    if (isset($_REQUEST['wc-ajax'])) {
+        $action = sanitize_key((string) wp_unslash($_REQUEST['wc-ajax']));
+    }
+
+    if ($action !== 'add_to_cart') {
+        return;
+    }
+
+    voitkus_purge_variation_required_notices_from_session();
+}
+add_action('shutdown', 'voitkus_purge_variation_notices_after_atc_ajax', 5);
+
 /**
  * Ukrywa zielony pasek „Cart updated” na stronie koszyka (qty stepper / update).
  * Kupon i błędy zostają.
@@ -1350,7 +1480,7 @@ function voitkus_filter_cart_page_notices(array $notices): array
         return $notices;
     }
 
-    foreach (['success', 'notice'] as $type) {
+    foreach (['success', 'notice', 'error'] as $type) {
         if (empty($notices[$type]) || ! is_array($notices[$type])) {
             continue;
         }
@@ -1359,7 +1489,8 @@ function voitkus_filter_cart_page_notices(array $notices): array
             $message = voitkus_notice_message_text($notice);
 
             return ! voitkus_is_cart_updated_notice_message($message)
-                && ! voitkus_is_added_to_cart_notice_message($message);
+                && ! voitkus_is_added_to_cart_notice_message($message)
+                && ! voitkus_is_variation_required_notice_message($message);
         }));
     }
 
@@ -2057,9 +2188,9 @@ function voitkus_why_defaults(): array
                 'accent' => 'yellow',
             ],
             [
-                'slug'   => 'grind',
-                'title'  => 'Pod Ciebie',
-                'text'   => 'Ziarno lub mielenie pod V60, AeroPress, espresso i inne metody.',
+                'slug'   => 'fresh',
+                'title'  => 'Świeżość',
+                'text'   => 'Palona w małych partiach — data palenia na każdej paczce.',
                 'accent' => 'cyan',
             ],
         ],
@@ -2195,18 +2326,12 @@ function voitkus_customize_register_why(WP_Customize_Manager $wp_customize): voi
 function voitkus_grind_defaults(): array
 {
     return [
-        'eyebrow'          => 'Świeżość i przygotowanie',
-        'title'            => 'Mielimy pod Twój sposób parzenia',
-        'intro'            => 'Ziarno lub mielenie dopasowane do metody — bez zgadywania w sklepie.',
-        'freshness_title'  => 'Data palenia na każdej paczce',
-        'freshness_text'   => 'Wiesz dokładnie, kiedy kawa opuściła palarnię — świeżość, której możesz zaufać.',
-        'methods'          => [
-            ['slug' => 'v60', 'label' => 'V60', 'accent' => 'cyan'],
-            ['slug' => 'aeropress', 'label' => 'AeroPress', 'accent' => 'magenta'],
-            ['slug' => 'espresso', 'label' => 'Espresso', 'accent' => 'orange'],
-            ['slug' => 'french-press', 'label' => 'French press', 'accent' => 'yellow'],
-            ['slug' => 'beans', 'label' => 'Ziarno', 'accent' => 'lime'],
-        ],
+        'eyebrow'          => 'Świeżość',
+        'title'            => 'Data palenia na każdej paczce',
+        'intro'            => 'Wiesz dokładnie, kiedy kawa opuściła palarnię — świeżość, której możesz zaufać.',
+        'freshness_title'  => '',
+        'freshness_text'   => '',
+        'methods'          => [],
     ];
 }
 
@@ -3426,3 +3551,60 @@ function voitkus_customize_register_footer(WP_Customize_Manager $wp_customize): 
         ]);
     }
 }
+
+function voitkus_is_mielenie_attribute_key(string $key): bool
+{
+    $normalized = sanitize_title(str_replace('attribute_', '', $key));
+
+    return $normalized === 'mielenie' || $normalized === 'pa-mielenie';
+}
+
+/**
+ * Brak wyboru mielenia w sklepie — domyślnie pierwsza opcja (ziarno).
+ *
+ * @param array<string, mixed> $args
+ * @return array<string, mixed>
+ */
+function voitkus_default_hidden_mielenie_variation_option(array $args): array
+{
+    if (empty($args['attribute']) || ! voitkus_is_mielenie_attribute_key((string) $args['attribute'])) {
+        return $args;
+    }
+
+    if (! empty($args['selected'])) {
+        return $args;
+    }
+
+    $options = $args['options'] ?? [];
+
+    if (! is_array($options) || $options === []) {
+        return $args;
+    }
+
+    $args['selected'] = (string) reset($options);
+
+    return $args;
+}
+add_filter('woocommerce_dropdown_variation_attribute_options_args', 'voitkus_default_hidden_mielenie_variation_option', 20);
+
+function voitkus_hide_mielenie_cart_item_data(array $item_data): array
+{
+    return array_values(array_filter($item_data, static function (array $row): bool {
+        $key = isset($row['key']) ? sanitize_title((string) $row['key']) : '';
+
+        return $key !== 'mielenie' && $key !== 'pa-mielenie';
+    }));
+}
+add_filter('woocommerce_get_item_data', 'voitkus_hide_mielenie_cart_item_data', 10, 1);
+
+function voitkus_hide_mielenie_order_item_meta(array $formatted_meta): array
+{
+    return array_values(array_filter($formatted_meta, static function ($meta): bool {
+        if (! is_object($meta) || ! isset($meta->key)) {
+            return true;
+        }
+
+        return ! voitkus_is_mielenie_attribute_key((string) $meta->key);
+    }));
+}
+add_filter('woocommerce_order_item_get_formatted_meta_data', 'voitkus_hide_mielenie_order_item_meta', 10, 1);

@@ -34,7 +34,7 @@ foreach ($filters as $filter) {
                 <p class="shop-page__eyebrow"><?php esc_html_e('Sklep', 'voitkus'); ?></p>
                 <h1 id="shop-title" class="lots__title shop-page__title"><?php echo esc_html($title); ?></h1>
                 <p class="shop-page__lead">
-                    <?php esc_html_e('Świeżo wypalone ziarno i mielenie pod Twój sposób parzenia.', 'voitkus'); ?>
+                    <?php esc_html_e('Świeżo wypalone ziarno — wysyłka 24–48h.', 'voitkus'); ?>
                 </p>
             </div>
 

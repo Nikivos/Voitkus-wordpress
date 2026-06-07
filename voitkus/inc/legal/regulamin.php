@@ -76,7 +76,7 @@ function voitkus_regulamin_sections(): array
                     'voitkus'
                 ),
                 esc_html__(
-                    'Informacje o produkcie (pochodzenie, profil smakowy, waga, wariant mielenia) podawane są na stronie produktu. Zdjęcia mają charakter poglądowy.',
+                    'Informacje o produkcie (pochodzenie, profil smakowy, waga) podawane są na stronie produktu. Zdjęcia mają charakter poglądowy.',
                     'voitkus'
                 )
             ),

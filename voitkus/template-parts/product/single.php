@@ -63,7 +63,7 @@ if (! $product->is_in_stock()) {
             </ol>
         </nav>
 
-        <div class="product-page__layout">
+        <div class="product-page__layout product-page__hero">
             <div class="product-page__media">
                 <div class="product-page__gallery" data-product-gallery>
                     <div class="product-page__gallery-stage">
@@ -82,6 +82,30 @@ if (! $product->is_in_stock()) {
                                 alt="<?php echo esc_attr($lot['title']); ?>"
                                 decoding="async"
                             >
+                            <?php if (count($gallery_ids) > 1) : ?>
+                                <button
+                                    type="button"
+                                    class="product-page__gallery-nav product-page__gallery-nav--prev"
+                                    aria-label="<?php esc_attr_e('Poprzednie zdjęcie', 'voitkus'); ?>"
+                                >
+                                    <span aria-hidden="true">&larr;</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    class="product-page__gallery-nav product-page__gallery-nav--next"
+                                    aria-label="<?php esc_attr_e('Następne zdjęcie', 'voitkus'); ?>"
+                                >
+                                    <span aria-hidden="true">&rarr;</span>
+                                </button>
+                                <span class="product-page__gallery-counter" aria-live="polite">
+                                    <?php
+                                    printf(
+                                        esc_html__('1 / %d', 'voitkus'),
+                                        count($gallery_ids)
+                                    );
+                                    ?>
+                                </span>
+                            <?php endif; ?>
                         <?php else : ?>
                             <div class="product-page__gallery-placeholder"><?php esc_html_e('FOTO PACZKI', 'voitkus'); ?></div>
                         <?php endif; ?>
@@ -160,39 +184,33 @@ if (! $product->is_in_stock()) {
                     </div>
                 <?php endif; ?>
 
-                <?php if (! empty($facts)) : ?>
-                    <div class="product-page__facts">
-                        <p class="product-page__section-label"><?php esc_html_e('Szczegóły', 'voitkus'); ?></p>
-                        <dl class="product-page__facts-list">
-                            <?php foreach ($facts as $label => $value) : ?>
-                                <div class="product-page__fact">
-                                    <dt><?php echo esc_html($label); ?></dt>
-                                    <dd><?php echo esc_html($value); ?></dd>
-                                </div>
-                            <?php endforeach; ?>
-                        </dl>
-                    </div>
-                <?php endif; ?>
+                <div class="product-page__commerce">
+                    <?php if (! empty($facts)) : ?>
+                        <div class="product-page__facts">
+                            <p class="product-page__section-label"><?php esc_html_e('Szczegóły', 'voitkus'); ?></p>
+                            <dl class="product-page__facts-list">
+                                <?php foreach ($facts as $label => $value) : ?>
+                                    <div class="product-page__fact">
+                                        <dt><?php echo esc_html($label); ?></dt>
+                                        <dd><?php echo esc_html($value); ?></dd>
+                                    </div>
+                                <?php endforeach; ?>
+                            </dl>
+                        </div>
+                    <?php endif; ?>
 
-                <div class="product-page__buybox">
-                    <?php echo wp_kses_post($stock_html); ?>
+                    <div class="product-page__buybox">
+                        <?php echo wp_kses_post($stock_html); ?>
 
-                    <div class="product-page__purchase">
-                        <?php woocommerce_template_single_add_to_cart(); ?>
-                    </div>
+                        <div class="product-page__purchase">
+                            <?php woocommerce_template_single_add_to_cart(); ?>
+                        </div>
 
                     <ul class="product-page__trust" aria-label="<?php esc_attr_e('Informacje o zamówieniu', 'voitkus'); ?>">
                         <li><?php esc_html_e('Palona co tydzień — wysyłamy świeże ziarno', 'voitkus'); ?></li>
-                        <li><?php esc_html_e('Mielenie pod Twoją metodę parzenia', 'voitkus'); ?></li>
                         <li><?php esc_html_e('Bezpieczna płatność i szybka dostawa', 'voitkus'); ?></li>
                     </ul>
-
-                    <?php if ($product->get_reviews_allowed() && comments_open()) : ?>
-                        <div class="product-page__review-form" aria-labelledby="reply-title">
-                            <p class="product-page__section-label"><?php esc_html_e('Twoja opinia', 'voitkus'); ?></p>
-                            <?php voitkus_render_product_review_form($product, true); ?>
-                        </div>
-                    <?php endif; ?>
+                    </div>
                 </div>
             </div>
         </div>
@@ -224,6 +242,20 @@ if (! $product->is_in_stock()) {
                 </div>
                 <div id="reviews" class="woocommerce-Reviews product-reviews__panel product-reviews__panel--list">
                     <?php voitkus_render_product_review_list(); ?>
+                </div>
+
+                <?php if ($product->get_reviews_allowed() && comments_open()) : ?>
+                    <div class="product-page__review-form" aria-labelledby="reply-title">
+                        <p class="product-page__section-label"><?php esc_html_e('Twoja opinia', 'voitkus'); ?></p>
+                        <?php voitkus_render_product_review_form($product, true); ?>
+                    </div>
+                <?php endif; ?>
+            </section>
+        <?php elseif ($product->get_reviews_allowed() && comments_open()) : ?>
+            <section class="product-reviews product-reviews--form-only" aria-labelledby="product-review-form-title">
+                <div class="product-page__review-form" aria-labelledby="reply-title">
+                    <p class="product-page__section-label" id="product-review-form-title"><?php esc_html_e('Twoja opinia', 'voitkus'); ?></p>
+                    <?php voitkus_render_product_review_form($product, true); ?>
                 </div>
             </section>
         <?php endif; ?>
