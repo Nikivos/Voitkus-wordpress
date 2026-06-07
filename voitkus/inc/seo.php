@@ -91,6 +91,132 @@ function voitkus_seo_default_image_url(): string
     return is_string($icon_url) ? $icon_url : '';
 }
 
+function voitkus_seo_brand_name(): string
+{
+    return trim((string) get_bloginfo('name', 'display'));
+}
+
+function voitkus_seo_product_title(WC_Product $product): string
+{
+    $title = $product->get_name();
+
+    if (function_exists('voitkus_lot_field')) {
+        $weight = trim(
+            voitkus_lot_field(
+                voitkus_lot_product_id($product),
+                'voitkus_weight',
+                $product
+            )
+        );
+
+        if ($weight !== '' && stripos($title, $weight) === false) {
+            $title .= ', ' . $weight;
+        }
+    }
+
+    return $title;
+}
+
+/**
+ * @param array<string, string> $parts
+ * @return array<string, string>
+ */
+function voitkus_seo_document_title_parts(array $parts): array
+{
+    if (is_admin() || voitkus_seo_plugin_active()) {
+        return $parts;
+    }
+
+    $brand = voitkus_seo_brand_name();
+
+    if ($brand === '') {
+        return $parts;
+    }
+
+    if (is_front_page()) {
+        $tagline = trim((string) get_bloginfo('description', 'display'));
+        $parts['title']   = $tagline !== '' ? $brand . ' — ' . voitkus_seo_trim_description($tagline, 52) : $brand;
+        $parts['site']    = '';
+        $parts['tagline'] = '';
+
+        return $parts;
+    }
+
+    if (is_404()) {
+        $parts['title'] = __('Strona nie istnieje', 'voitkus');
+        $parts['site']  = $brand;
+
+        return $parts;
+    }
+
+    if (function_exists('is_product') && is_product()) {
+        $product = wc_get_product(get_queried_object_id());
+
+        if ($product instanceof WC_Product) {
+            $parts['title'] = voitkus_seo_product_title($product);
+            $parts['site']  = $brand;
+        }
+
+        return $parts;
+    }
+
+    if (function_exists('is_shop') && is_shop()) {
+        $parts['title'] = __('Kawa specialty', 'voitkus');
+        $parts['site']  = $brand;
+
+        return $parts;
+    }
+
+    if (function_exists('is_cart') && is_cart()) {
+        $parts['title'] = __('Koszyk', 'voitkus');
+        $parts['site']  = $brand;
+
+        return $parts;
+    }
+
+    if (function_exists('is_checkout') && is_checkout()) {
+        $parts['title'] = __('Kasa', 'voitkus');
+        $parts['site']  = $brand;
+
+        return $parts;
+    }
+
+    if (function_exists('is_account_page') && is_account_page()) {
+        $parts['title'] = __('Konto', 'voitkus');
+        $parts['site']  = $brand;
+
+        return $parts;
+    }
+
+    if (function_exists('is_product_taxonomy') && is_product_taxonomy()) {
+        $term = get_queried_object();
+
+        if ($term instanceof WP_Term && $term->name !== '') {
+            $parts['title'] = $term->name;
+            $parts['site']  = $brand;
+        }
+
+        return $parts;
+    }
+
+    if (is_singular()) {
+        $parts['site'] = $brand;
+    }
+
+    return $parts;
+}
+add_filter('document_title_parts', 'voitkus_seo_document_title_parts', 20);
+
+function voitkus_seo_document_title_separator(string $separator): string
+{
+    if (is_admin() || voitkus_seo_plugin_active()) {
+        return $separator;
+    }
+
+    return '|';
+}
+add_filter('document_title_separator', 'voitkus_seo_document_title_separator', 20);
+
 /**
  * @return array{title: string, description: string, url: string, image: string, type: string}
  */
