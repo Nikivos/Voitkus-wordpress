@@ -1,6 +1,6 @@
 <?php
 /**
- * Baseline SEO meta + Open Graph (when no SEO plugin is active).
+ * Baseline SEO: meta, Open Graph, noindex rules, sitemap filters (no SEO plugin).
  *
  * @package Voitkus
  */
@@ -262,6 +262,9 @@ function voitkus_seo_context(): array
 
             $context['type'] = 'product';
         }
+    } elseif (is_front_page()) {
+        $context['url']  = home_url('/');
+        $context['type'] = 'website';
     } elseif (is_singular()) {
         $post = get_queried_object();
 
@@ -292,12 +295,201 @@ function voitkus_seo_context(): array
         $context['description'] = voitkus_seo_trim_description(
             __('Kawa specialty z palarni Voitkus — świeżo palone loty, przelew i espresso, wysyłka 24–48h.', 'voitkus')
         );
-    } elseif (is_front_page()) {
-        $context['url'] = home_url('/');
     }
 
     return $context;
 }
+
+/**
+ * Page slugs excluded from sitemap and marked noindex.
+ *
+ * @return string[]
+ */
+function voitkus_seo_noindex_page_slugs(): array
+{
+    return [
+        'kontakt',
+        'o-nas',
+        'polityka-prywatnosci',
+        'cart',
+        'subskrypcja',
+    ];
+}
+
+/**
+ * @return int[]
+ */
+function voitkus_seo_sitemap_excluded_page_ids(): array
+{
+    static $ids = null;
+
+    if (is_array($ids)) {
+        return $ids;
+    }
+
+    $ids = [];
+
+    if (function_exists('wc_get_page_id')) {
+        foreach (['cart', 'checkout', 'myaccount'] as $wc_page) {
+            $page_id = (int) wc_get_page_id($wc_page);
+
+            if ($page_id > 0) {
+                $ids[] = $page_id;
+            }
+        }
+    }
+
+    foreach (voitkus_seo_noindex_page_slugs() as $slug) {
+        $page = get_page_by_path($slug);
+
+        if ($page instanceof WP_Post) {
+            $ids[] = (int) $page->ID;
+        }
+    }
+
+    return $ids = array_values(array_unique($ids));
+}
+
+function voitkus_seo_should_noindex(): bool
+{
+    if (is_404() || is_search() || is_author()) {
+        return true;
+    }
+
+    if (is_category() || is_tag() || is_date()) {
+        return true;
+    }
+
+    if (function_exists('is_product_taxonomy') && is_product_taxonomy()) {
+        return true;
+    }
+
+    if (function_exists('is_cart') && is_cart()) {
+        return true;
+    }
+
+    if (function_exists('is_checkout') && is_checkout()) {
+        return true;
+    }
+
+    if (function_exists('is_account_page') && is_account_page()) {
+        return true;
+    }
+
+    if (function_exists('is_wc_endpoint_url') && is_wc_endpoint_url()) {
+        return true;
+    }
+
+    if (is_singular('post')) {
+        return true;
+    }
+
+    if (is_singular('page')) {
+        $slug = (string) get_post_field('post_name', get_queried_object_id());
+
+        return in_array($slug, voitkus_seo_noindex_page_slugs(), true);
+    }
+
+    return false;
+}
+
+function voitkus_seo_redirect_product_tag_archive(): void
+{
+    if (is_admin() || voitkus_seo_plugin_active() || ! is_tax('product_tag')) {
+        return;
+    }
+
+    $term = get_queried_object();
+
+    if (! $term instanceof WP_Term || $term->slug === '') {
+        return;
+    }
+
+    $shop_url = function_exists('wc_get_page_permalink') ? wc_get_page_permalink('shop') : '';
+
+    if (! is_string($shop_url) || $shop_url === '') {
+        $shop_url = home_url('/shop/');
+    }
+
+    wp_safe_redirect(add_query_arg('filter', $term->slug, $shop_url), 301);
+    exit;
+}
+add_action('template_redirect', 'voitkus_seo_redirect_product_tag_archive', 1);
+
+/**
+ * @param array<string, WP_Post_Type> $post_types
+ * @return array<string, WP_Post_Type>
+ */
+function voitkus_seo_filter_sitemap_post_types(array $post_types): array
+{
+    if (voitkus_seo_plugin_active()) {
+        return $post_types;
+    }
+
+    unset($post_types['post']);
+
+    return $post_types;
+}
+add_filter('wp_sitemaps_post_types', 'voitkus_seo_filter_sitemap_post_types');
+
+/**
+ * @param array<string, WP_Taxonomy> $taxonomies
+ * @return array<string, WP_Taxonomy>
+ */
+function voitkus_seo_filter_sitemap_taxonomies(array $taxonomies): array
+{
+    if (voitkus_seo_plugin_active()) {
+        return $taxonomies;
+    }
+
+    unset($taxonomies['category'], $taxonomies['post_tag'], $taxonomies['product_tag'], $taxonomies['product_cat']);
+
+    return $taxonomies;
+}
+add_filter('wp_sitemaps_taxonomies', 'voitkus_seo_filter_sitemap_taxonomies');
+
+/**
+ * @param mixed $provider
+ * @return mixed
+ */
+function voitkus_seo_remove_users_sitemap_provider($provider, string $name)
+{
+    if (voitkus_seo_plugin_active() || $name !== 'users') {
+        return $provider;
+    }
+
+    return false;
+}
+add_filter('wp_sitemaps_add_provider', 'voitkus_seo_remove_users_sitemap_provider', 10, 2);
+
+/**
+ * @param array<string, mixed> $args
+ * @return array<string, mixed>
+ */
+function voitkus_seo_filter_sitemap_posts_query_args(array $args, string $post_type): array
+{
+    if (voitkus_seo_plugin_active() || $post_type !== 'page') {
+        return $args;
+    }
+
+    $exclude = voitkus_seo_sitemap_excluded_page_ids();
+
+    if ($exclude === []) {
+        return $args;
+    }
+
+    $args['post__not_in'] = array_values(
+        array_unique(
+            array_merge(
+                isset($args['post__not_in']) && is_array($args['post__not_in']) ? $args['post__not_in'] : [],
+                $exclude
+            )
+        )
+    );
+
+    return $args;
+}
+add_filter('wp_sitemaps_posts_query_args', 'voitkus_seo_filter_sitemap_posts_query_args', 10, 2);
 
 function voitkus_seo_print_head_meta(): void
 {
@@ -305,10 +497,12 @@ function voitkus_seo_print_head_meta(): void
         return;
     }
 
-    if (is_404()) {
+    if (voitkus_seo_should_noindex()) {
         echo '<meta name="robots" content="noindex, follow">' . "\n";
 
-        return;
+        if (is_404()) {
+            return;
+        }
     }
 
     $context = voitkus_seo_context();
