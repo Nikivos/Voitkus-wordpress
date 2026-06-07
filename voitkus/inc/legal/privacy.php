@@ -28,7 +28,9 @@ function voitkus_privacy_sections(): array
                     <li><strong>%2$s:</strong> %3$s</li>
                     <li><strong>%4$s:</strong> %5$s</li>
                     <li><strong>%6$s:</strong> %7$s</li>
-                    <li><strong>%8$s:</strong> <a href="mailto:%9$s">%9$s</a></li>
+                    <li><strong>%8$s:</strong> %9$s</li>
+                    <li><strong>%10$s:</strong> <a href="mailto:%11$s">%12$s</a></li>
+                    <li><strong>%13$s:</strong> <a href="tel:%14$s">%15$s</a></li>
                 </ul>',
                 esc_html__(
                     'Administratorem Twoich danych osobowych w związku ze sklepem internetowym Voitkus jest:',
@@ -38,11 +40,16 @@ function voitkus_privacy_sections(): array
                 esc_html($c['legal_name']),
                 esc_html__('NIP', 'voitkus'),
                 esc_html($c['nip']),
+                esc_html__('REGON', 'voitkus'),
+                esc_html($c['regon']),
                 esc_html__('Adres', 'voitkus'),
                 $address,
                 esc_html__('E-mail', 'voitkus'),
                 esc_attr($c['email']),
-                $email
+                $email,
+                esc_html__('Telefon', 'voitkus'),
+                esc_attr(voitkus_company_phone_tel()),
+                esc_html($c['phone'])
             ),
         ],
         [
@@ -163,11 +170,13 @@ function voitkus_privacy_sections(): array
         [
             'title' => __('7. Pliki cookies', 'voitkus'),
             'html'  => sprintf(
-                '<p>%1$s</p><p>%2$s</p>',
+                '<p>%1$s <a href="%2$s">%3$s</a>.</p><p>%4$s</p>',
                 esc_html__(
-                    'Sklep używa plików cookies niezbędnych do działania (koszyk, sesja, bezpieczeństwo). Mogą być używane także cookies analityczne lub marketingowe — jeśli je włączymy, poinformujemy w banerze cookies.',
+                    'Szczegółowe zasady dotyczą plików cookies opisuje',
                     'voitkus'
                 ),
+                esc_url(home_url('/legal/cookies/')),
+                esc_html__('Polityka cookies', 'voitkus'),
                 esc_html__(
                     'Możesz zarządzać cookies w ustawieniach przeglądarki. Wyłączenie cookies niezbędnych może uniemożliwić złożenie zamówienia.',
                     'voitkus'

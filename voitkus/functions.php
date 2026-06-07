@@ -16,6 +16,8 @@ $voitkus_includes = [
     '/inc/legal/regulamin.php',
     '/inc/legal/shipping.php',
     '/inc/legal/privacy.php',
+    '/inc/legal/cookies.php',
+    '/inc/legal/withdrawal.php',
     '/inc/contact-page.php',
     '/inc/about-page-meta.php',
     '/inc/about-page.php',
@@ -2600,6 +2602,8 @@ function voitkus_footer_link_groups(): array
                 ['label' => __('Dostawa i płatność', 'voitkus'), 'url' => home_url('/legal/shipping/')],
                 ['label' => __('Regulamin', 'voitkus'), 'url' => home_url('/legal/terms/')],
                 ['label' => __('RODO', 'voitkus'), 'url' => home_url('/legal/privacy/')],
+                ['label' => __('Polityka cookies', 'voitkus'), 'url' => home_url('/legal/cookies/')],
+                ['label' => __('Zwroty i reklamacje', 'voitkus'), 'url' => home_url('/legal/terms/#reklamacje')],
             ],
         ],
     ];
@@ -2613,6 +2617,8 @@ function voitkus_footer_link_groups(): array
  *   short_name: string,
  *   owner: string,
  *   nip: string,
+ *   regon: string,
+ *   phone: string,
  *   street: string,
  *   postcode: string,
  *   city: string,
@@ -2628,6 +2634,8 @@ function voitkus_company_details(): array
         'short_name'     => 'MIKITA VOITKUS',
         'owner'          => 'Mikita Voitkus',
         'nip'            => '5253092710',
+        'regon'          => '544939753',
+        'phone'          => '+48 573 340 339',
         'street'         => 'ul. Adama Mickiewicza 38',
         'postcode'       => '01-650',
         'city'           => 'Warszawa',
@@ -2642,6 +2650,14 @@ function voitkus_company_address_line(): string
     $c = voitkus_company_details();
 
     return sprintf('%s, %s %s', $c['street'], $c['postcode'], $c['city']);
+}
+
+function voitkus_company_phone_tel(): string
+{
+    $phone = (string) (voitkus_company_details()['phone'] ?? '');
+    $digits = preg_replace('/[^\d+]/', '', $phone);
+
+    return is_string($digits) ? $digits : '';
 }
 
 /**
@@ -2889,7 +2905,7 @@ function voitkus_ensure_legal_pages(): void
         return;
     }
 
-    $flag = 'voitkus_legal_pages_v3';
+    $flag = 'voitkus_legal_pages_v4';
 
     if (get_option($flag) === 'done') {
         return;
@@ -2904,6 +2920,8 @@ function voitkus_ensure_legal_pages(): void
     $terms_id   = voitkus_ensure_page('terms', 'Regulamin', '[voitkus_regulamin]', $legal_id);
     $privacy_id = voitkus_ensure_page('privacy', 'Polityka prywatności (RODO)', '[voitkus_privacy]', $legal_id);
     voitkus_ensure_page('shipping', 'Dostawa i płatność', '[voitkus_shipping_info]', $legal_id);
+    voitkus_ensure_page('withdrawal', 'Formularz odstąpienia od umowy', '[voitkus_withdrawal]', $legal_id);
+    voitkus_ensure_page('cookies', 'Polityka cookies', '[voitkus_cookies]', $legal_id);
 
     if (class_exists('WooCommerce')) {
         if ($terms_id > 0) {
@@ -2923,8 +2941,28 @@ function voitkus_register_legal_shortcodes(): void
     add_shortcode('voitkus_regulamin', 'voitkus_regulamin_shortcode');
     add_shortcode('voitkus_shipping_info', 'voitkus_shipping_info_shortcode');
     add_shortcode('voitkus_privacy', 'voitkus_privacy_shortcode');
+    add_shortcode('voitkus_cookies', 'voitkus_cookies_shortcode');
+    add_shortcode('voitkus_withdrawal', 'voitkus_withdrawal_shortcode');
 }
 add_action('init', 'voitkus_register_legal_shortcodes');
+
+/**
+ * Checkout: wymagana akceptacja regulaminu (strona terms musi być przypisana w WC).
+ */
+function voitkus_sync_checkout_terms_requirement(): void
+{
+    if (! class_exists('WooCommerce')) {
+        return;
+    }
+
+    if (get_option('voitkus_checkout_terms_v1') === 'done') {
+        return;
+    }
+
+    update_option('woocommerce_enable_terms_and_conditions', 'yes');
+    update_option('voitkus_checkout_terms_v1', 'done', false);
+}
+add_action('init', 'voitkus_sync_checkout_terms_requirement', 9);
 
 function voitkus_is_contact_page_slug(string $slug): bool
 {

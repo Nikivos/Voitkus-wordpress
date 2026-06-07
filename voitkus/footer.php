@@ -60,8 +60,20 @@ $footer = voitkus_footer_section();
                     <dd><?php echo esc_html($company['nip']); ?></dd>
                 </div>
                 <div class="site-footer__legal-row">
+                    <dt><?php esc_html_e('REGON', 'voitkus'); ?></dt>
+                    <dd><?php echo esc_html($company['regon']); ?></dd>
+                </div>
+                <div class="site-footer__legal-row">
                     <dt><?php esc_html_e('Adres', 'voitkus'); ?></dt>
                     <dd><?php echo esc_html(voitkus_company_address_line()); ?></dd>
+                </div>
+                <div class="site-footer__legal-row">
+                    <dt><?php esc_html_e('Telefon', 'voitkus'); ?></dt>
+                    <dd>
+                        <a href="<?php echo esc_url('tel:' . voitkus_company_phone_tel()); ?>">
+                            <?php echo esc_html($company['phone']); ?>
+                        </a>
+                    </dd>
                 </div>
             </dl>
         </section>

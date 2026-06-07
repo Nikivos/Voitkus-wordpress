@@ -24,6 +24,10 @@ function voitkus_wc_email_legal_links(): array
             'label' => __('RODO', 'voitkus'),
             'url'   => home_url('/legal/privacy/'),
         ],
+        [
+            'label' => __('Polityka cookies', 'voitkus'),
+            'url'   => home_url('/legal/cookies/'),
+        ],
     ];
 }
 

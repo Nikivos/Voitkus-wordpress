@@ -51,6 +51,16 @@ function voitkus_render_contact_page(): string
             </article>
 
             <article class="contact-card">
+                <h2 class="contact-card__title"><?php esc_html_e('Telefon', 'voitkus'); ?></h2>
+                <p class="contact-card__value">
+                    <a href="<?php echo esc_url('tel:' . voitkus_company_phone_tel()); ?>"><?php echo esc_html($c['phone']); ?></a>
+                </p>
+                <p class="contact-card__hint">
+                    <?php esc_html_e('Pytania o zamówienie i reklamacje.', 'voitkus'); ?>
+                </p>
+            </article>
+
+            <article class="contact-card">
                 <h2 class="contact-card__title"><?php esc_html_e('Adres', 'voitkus'); ?></h2>
                 <p class="contact-card__value">
                     <?php echo esc_html($c['legal_name']); ?><br>
@@ -66,12 +76,15 @@ function voitkus_render_contact_page(): string
             <article class="contact-card">
                 <h2 class="contact-card__title"><?php esc_html_e('Dane firmy', 'voitkus'); ?></h2>
                 <p class="contact-card__value">
-                    <?php esc_html_e('NIP', 'voitkus'); ?>: <?php echo esc_html($c['nip']); ?>
+                    <?php esc_html_e('NIP', 'voitkus'); ?>: <?php echo esc_html($c['nip']); ?><br>
+                    <?php esc_html_e('REGON', 'voitkus'); ?>: <?php echo esc_html($c['regon']); ?>
                 </p>
                 <p class="contact-card__hint">
                     <a href="<?php echo esc_url(home_url('/legal/terms/')); ?>"><?php esc_html_e('Regulamin', 'voitkus'); ?></a>
                     ·
                     <a href="<?php echo esc_url(home_url('/legal/privacy/')); ?>"><?php esc_html_e('RODO', 'voitkus'); ?></a>
+                    ·
+                    <a href="<?php echo esc_url(home_url('/legal/cookies/')); ?>"><?php esc_html_e('Cookies', 'voitkus'); ?></a>
                 </p>
             </article>
         </div>
