@@ -1253,29 +1253,54 @@
       text-decoration: none;
     }
 
-    .lot-card__atc {
+    .lot-card__atc,
+    .lot-card__options {
       margin-top: 12px;
       width: 100%;
       padding: 12px 16px;
-      border: none;
       border-radius: 999px;
-      background: var(--lot-accent);
-      color: var(--voitkus-black);
       font-family: inherit;
       font-size: 12px;
       font-weight: 700;
       letter-spacing: 0.06em;
       text-transform: uppercase;
-      cursor: pointer;
       transition:
         transform 160ms ease,
         opacity 160ms ease,
-        box-shadow 160ms ease;
+        box-shadow 160ms ease,
+        border-color 160ms ease,
+        background-color 160ms ease;
     }
 
-    .lot-card__atc:hover:not(:disabled) {
+    .lot-card__atc {
+      border: none;
+      background: var(--lot-accent);
+      color: var(--voitkus-black);
+      cursor: pointer;
+    }
+
+    .lot-card__options {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+      border: 1.5px solid rgba(10, 10, 10, 0.18);
+      background: transparent;
+      color: var(--voitkus-black);
+      text-align: center;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .lot-card__atc:hover:not(:disabled),
+    .lot-card__options:hover {
       transform: translateY(-1px);
       box-shadow: 0 8px 20px rgba(10, 10, 10, 0.08);
+    }
+
+    .lot-card__options:hover {
+      border-color: var(--lot-accent);
+      background: color-mix(in srgb, var(--lot-accent) 12%, transparent);
     }
 
     .lot-card__atc:disabled,

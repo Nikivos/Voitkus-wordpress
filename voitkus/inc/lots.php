@@ -184,6 +184,10 @@ function voitkus_lot_price_html(WC_Product $product): string
         return $product->get_price_html();
     }
 
+    if ($product->is_type('variable')) {
+        return $product->get_price_html();
+    }
+
     if (! $product->is_on_sale()) {
         return wc_price($product->get_price());
     }
@@ -262,41 +266,7 @@ function voitkus_lot_ajax_add_context(WC_Product $product): array
         ];
     }
 
-    if (! $product->is_type('variable')) {
-        return $empty;
-    }
-
-    $data_store   = WC_Data_Store::load('product');
-    $variation_id = (int) $data_store->find_matching_product_variation($product, $product->get_default_attributes());
-
-    if ($variation_id <= 0) {
-        $children = $product->get_children();
-
-        foreach ($children as $child_id) {
-            $variation = wc_get_product((int) $child_id);
-
-            if ($variation instanceof WC_Product_Variation && $variation->is_purchasable() && $variation->is_in_stock()) {
-                $variation_id = (int) $child_id;
-                break;
-            }
-        }
-    }
-
-    if ($variation_id <= 0) {
-        return $empty;
-    }
-
-    $variation = wc_get_product($variation_id);
-
-    if (! $variation instanceof WC_Product_Variation || ! $variation->is_purchasable() || ! $variation->is_in_stock()) {
-        return $empty;
-    }
-
-    return [
-        'can'          => true,
-        'product_id'   => $product->get_id(),
-        'variation_id' => $variation_id,
-    ];
+    return $empty;
 }
 
 /**
@@ -393,8 +363,9 @@ function voitkus_build_lot_from_product(WC_Product $product, int $index): array
         'url'          => (string) get_permalink($product->get_id()),
         'product_id'   => (int) $ajax_add['product_id'] > 0 ? (int) $ajax_add['product_id'] : $lot_id,
         'variation_id' => (int) ($ajax_add['variation_id'] ?? 0),
-        'can_ajax_add' => ! empty($ajax_add['can']),
-        'image_html'   => $product->get_image('large', ['class' => 'lot-card__img']),
+        'can_ajax_add'  => ! empty($ajax_add['can']),
+        'needs_options' => $product->is_type('variable'),
+        'image_html'    => $product->get_image('large', ['class' => 'lot-card__img']),
         'origin'      => $origin,
         'title'       => $product->get_name(),
         'price_html'  => voitkus_lot_price_html($product),

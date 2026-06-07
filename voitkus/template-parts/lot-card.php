@@ -20,9 +20,9 @@ $style = ($lot['accent_css'] ?? '') !== ''
     ? ' style="--lot-accent: ' . esc_attr($lot['accent_css']) . ';"'
     : '';
 
-$product_id   = (int) ($lot['product_id'] ?? 0);
-$variation_id = (int) ($lot['variation_id'] ?? 0);
-$can_ajax_add = ! empty($lot['can_ajax_add']) && $product_id > 0;
+$product_id    = (int) ($lot['product_id'] ?? 0);
+$can_ajax_add  = ! empty($lot['can_ajax_add']) && $product_id > 0;
+$needs_options = ! empty($lot['needs_options']);
 ?>
 
 <article
@@ -96,13 +96,18 @@ $can_ajax_add = ! empty($lot['can_ajax_add']) && $product_id > 0;
             type="button"
             class="lot-card__atc add_to_cart_button ajax_add_to_cart"
             data-product_id="<?php echo esc_attr((string) $product_id); ?>"
-            <?php if ($variation_id > 0) : ?>
-                data-variation_id="<?php echo esc_attr((string) $variation_id); ?>"
-            <?php endif; ?>
             data-quantity="1"
             aria-label="<?php echo esc_attr(sprintf(/* translators: %s: product title */ __('Dodaj do koszyka: %s', 'voitkus'), $lot['title'])); ?>"
         >
             <?php esc_html_e('Dodaj do koszyka', 'voitkus'); ?>
         </button>
+    <?php elseif ($needs_options) : ?>
+        <a
+            href="<?php echo esc_url($lot['url']); ?>"
+            class="lot-card__options"
+            aria-label="<?php echo esc_attr(sprintf(/* translators: %s: product title */ __('Wybierz opcję: %s', 'voitkus'), $lot['title'])); ?>"
+        >
+            <?php esc_html_e('Wybierz opcję', 'voitkus'); ?>
+        </a>
     <?php endif; ?>
 </article>
