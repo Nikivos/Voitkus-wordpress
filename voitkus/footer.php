@@ -37,8 +37,14 @@ $footer = voitkus_footer_section();
                         <?php endif; ?>
                         <ul class="site-footer__list">
                             <?php foreach ($group['links'] as $link) : ?>
+                                <?php
+                                $is_cookie_prefs = ($link['url'] ?? '') === '#voitkus-cookie-preferences';
+                                ?>
                                 <li>
-                                    <a href="<?php echo esc_url($link['url']); ?>"><?php echo esc_html($link['label']); ?></a>
+                                    <a
+                                        href="<?php echo $is_cookie_prefs ? '#' : esc_url($link['url']); ?>"
+                                        <?php echo $is_cookie_prefs ? ' data-voitkus-cookie-preferences' : ''; ?>
+                                    ><?php echo esc_html($link['label']); ?></a>
                                 </li>
                             <?php endforeach; ?>
                         </ul>

@@ -52,11 +52,11 @@ function voitkus_cookies_sections(): array
             'html'  => sprintf(
                 '<p>%1$s</p><p>%2$s</p>',
                 esc_html__(
-                    'Cookies analityczne lub marketingowe (np. Google Analytics, Meta Pixel) — tylko jeśli je włączymy. W takim przypadku poprosimy o zgodę w banerze cookies przed ich zapisaniem.',
+                    'Cookies analityczne lub marketingowe (np. Google Analytics, Meta Pixel) ładujemy dopiero po Twojej zgodzie w banerze cookies na stronie. Bez zgody pozostają wyłączone.',
                     'voitkus'
                 ),
                 esc_html__(
-                    'Jeśli baner cookies nie jest widoczny, oznacza to, że sklep korzysta wyłącznie z cookies niezbędnych opisanych powyżej.',
+                    'Ustawienia możesz zmienić w każdej chwili — link „Ustawienia cookies” w stopce strony.',
                     'voitkus'
                 )
             ),

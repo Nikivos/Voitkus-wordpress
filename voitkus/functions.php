@@ -23,6 +23,7 @@ $voitkus_includes = [
     '/inc/about-page.php',
     '/inc/emails/setup.php',
     '/inc/invoice-checkout.php',
+    '/inc/cookie-consent.php',
 ];
 
 foreach ($voitkus_includes as $relative) {
@@ -2603,6 +2604,7 @@ function voitkus_footer_link_groups(): array
                 ['label' => __('Regulamin', 'voitkus'), 'url' => home_url('/legal/terms/')],
                 ['label' => __('RODO', 'voitkus'), 'url' => home_url('/legal/privacy/')],
                 ['label' => __('Polityka cookies', 'voitkus'), 'url' => home_url('/legal/cookies/')],
+                ['label' => __('Ustawienia cookies', 'voitkus'), 'url' => '#voitkus-cookie-preferences'],
                 ['label' => __('Zwroty i reklamacje', 'voitkus'), 'url' => home_url('/legal/terms/#reklamacje')],
             ],
         ],
