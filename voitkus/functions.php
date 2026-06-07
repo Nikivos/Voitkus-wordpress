@@ -20,6 +20,7 @@ $voitkus_includes = [
     '/inc/about-page-meta.php',
     '/inc/about-page.php',
     '/inc/emails/setup.php',
+    '/inc/invoice-checkout.php',
 ];
 
 foreach ($voitkus_includes as $relative) {

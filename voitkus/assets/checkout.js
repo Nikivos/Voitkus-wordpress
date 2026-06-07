@@ -153,6 +153,25 @@
     });
   }
 
+  function bindInvoiceToggle() {
+    var $scope = $('.checkout-page');
+    var $checkbox = $('#billing_voitkus_invoice');
+
+    if (!$checkbox.length || !$scope.length) {
+      return;
+    }
+
+    function syncInvoiceFields() {
+      var active = $checkbox.prop('checked');
+      $scope.toggleClass('is-voitkus-invoice-requested', active);
+      $('#billing_company_field, #billing_voitkus_nip_field').toggle(active);
+      $('#billing_company, #billing_voitkus_nip').prop('required', active);
+    }
+
+    $checkbox.off('change.voitkusInvoice').on('change.voitkusInvoice', syncInvoiceFields);
+    syncInvoiceFields();
+  }
+
   function refreshShippingUi() {
     markSelectedShipping();
     highlightInpostButtons();
@@ -168,8 +187,12 @@
   $(function () {
     bindShippingTools();
     bindShippingCardSelect();
+    bindInvoiceToggle();
     refreshShippingUi();
   });
 
-  $(document.body).on('updated_cart_totals updated_checkout wc_fragments_refreshed', refreshShippingUi);
+  $(document.body).on('updated_cart_totals updated_checkout wc_fragments_refreshed', function () {
+    refreshShippingUi();
+    bindInvoiceToggle();
+  });
 })(jQuery);

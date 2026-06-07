@@ -4922,6 +4922,63 @@
       line-height: 1.45;
     }
 
+    .checkout-page #billing_company_field,
+    .checkout-page #billing_voitkus_nip_field {
+      display: none;
+    }
+
+    .checkout-page.is-voitkus-invoice-requested #billing_company_field,
+    .checkout-page.is-voitkus-invoice-requested #billing_voitkus_nip_field {
+      display: block;
+    }
+
+    .checkout-page #billing_voitkus_invoice_field {
+      margin-top: 8px;
+      padding-top: 20px;
+      border-top: 1px solid rgba(10, 10, 10, 0.08);
+    }
+
+    .checkout-page #billing_voitkus_nip_field input {
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.04em;
+    }
+
+    .voitkus-order-invoice {
+      margin-top: 24px;
+    }
+
+    .voitkus-order-invoice__list {
+      margin: 0;
+    }
+
+    .voitkus-order-invoice__row {
+      display: grid;
+      grid-template-columns: minmax(5rem, 7rem) minmax(0, 1fr);
+      gap: 8px 16px;
+      margin: 0 0 10px;
+    }
+
+    .voitkus-order-invoice__row dt {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--voitkus-gray-dark);
+    }
+
+    .voitkus-order-invoice__row dd {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--voitkus-black);
+    }
+
+    .voitkus-order-invoice__hint {
+      margin: 12px 0 0;
+      font-size: 13px;
+      line-height: 1.5;
+      color: var(--voitkus-gray-dark);
+    }
+
     .voitkus-checkout-admin-hint {
       margin-bottom: 20px;
     }
