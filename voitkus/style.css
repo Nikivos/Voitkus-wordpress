@@ -7757,6 +7757,140 @@
       color: var(--voitkus-gray-dark);
     }
 
+    /* Variable product — Waga / Mielenie (styled selects, no pills) */
+    .product-type-variable .product-page__price-wrap .product-page__price,
+    .product-type-variable .product-page__price-wrap .product-page__weight {
+      display: none;
+    }
+
+    .product-page__purchase .variations_form.cart {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      grid-template-columns: unset;
+      margin: 0 0 20px;
+    }
+
+    .product-page__purchase .variations_form .variations {
+      width: 100%;
+      margin: 0;
+      border: 0;
+      border-collapse: collapse;
+    }
+
+    .product-page__purchase .variations_form .variations tbody,
+    .product-page__purchase .variations_form .variations tr {
+      display: block;
+      width: 100%;
+    }
+
+    .product-page__purchase .variations_form .variations tr + tr {
+      margin-top: 14px;
+    }
+
+    .product-page__purchase .variations_form .variations th.label {
+      display: block;
+      padding: 0 0 8px;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--voitkus-gray-dark);
+      border: 0;
+    }
+
+    .product-page__purchase .variations_form .variations td.value {
+      display: block;
+      padding: 0;
+      border: 0;
+    }
+
+    .product-page__purchase .variations_form .variations select {
+      width: 100%;
+      min-height: 52px;
+      padding: 14px 44px 14px 16px;
+      border: 1px solid rgba(10, 10, 10, 0.12);
+      border-radius: 12px;
+      background-color: var(--voitkus-white);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M4 6l4 4 4-4' stroke='%230A0A0A' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 16px center;
+      background-size: 16px 16px;
+      font-size: 15px;
+      font-weight: 600;
+      line-height: 1.3;
+      color: var(--voitkus-black);
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      transition:
+        border-color 200ms ease,
+        box-shadow 200ms ease;
+    }
+
+    .product-page__purchase .variations_form .variations select:hover {
+      border-color: rgba(10, 10, 10, 0.22);
+    }
+
+    .product-page__purchase .variations_form .variations select:focus {
+      outline: none;
+      border-color: var(--lot-accent);
+      box-shadow: 0 0 0 1px var(--lot-accent);
+    }
+
+    .product-page__purchase .variations_form .reset_variations {
+      display: none !important;
+    }
+
+    .product-page__purchase .variations_form .single_variation_wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .product-page__purchase .variations_form .woocommerce-variation {
+      min-height: 0;
+    }
+
+    .product-page__purchase .variations_form .woocommerce-variation-price {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 700;
+      line-height: 1.15;
+      color: var(--voitkus-black);
+    }
+
+    .product-page__purchase .variations_form .woocommerce-variation-price .amount {
+      font-weight: inherit;
+    }
+
+    .product-page__purchase .variations_form .woocommerce-variation-price del {
+      margin-right: 10px;
+      font-size: 0.72em;
+      font-weight: 600;
+      opacity: 0.45;
+    }
+
+    .product-page__purchase .variations_form .woocommerce-variation-price ins {
+      text-decoration: none;
+    }
+
+    .product-page__purchase .variations_form .woocommerce-variation-availability {
+      display: none;
+    }
+
+    .product-page__purchase .variations_form .woocommerce-variation-add-to-cart {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 12px;
+      align-items: center;
+    }
+
+    .product-page__purchase .variations_form .woocommerce-variation-add-to-cart .stock {
+      grid-column: 1 / -1;
+    }
+
     .product-page__trust {
       margin: 0;
       padding: 0;
@@ -8648,13 +8782,40 @@
         padding-bottom: calc(92px + env(safe-area-inset-bottom, 0px));
       }
 
-      .product-page__purchase .cart {
+      .product-page__purchase form.cart:not(.variations_form) {
         position: fixed;
         left: 0;
         right: 0;
         bottom: 0;
         z-index: var(--z-sticky-bar);
         grid-template-columns: auto minmax(0, 1fr);
+        gap: 10px;
+        margin: 0;
+        padding: 12px var(--grid-gutter-md) calc(12px + env(safe-area-inset-bottom, 0px));
+        border-top: 1px solid rgba(10, 10, 10, 0.08);
+        background: rgba(255, 255, 255, 0.94);
+        -webkit-backdrop-filter: blur(12px);
+        backdrop-filter: blur(12px);
+        box-shadow: 0 -10px 40px rgba(10, 10, 10, 0.08);
+      }
+
+      .product-page__purchase .variations_form.cart {
+        position: static;
+        margin: 0 0 20px;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        box-shadow: none;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+      }
+
+      .product-page__purchase .variations_form .woocommerce-variation-add-to-cart {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: var(--z-sticky-bar);
         gap: 10px;
         margin: 0;
         padding: 12px var(--grid-gutter-md) calc(12px + env(safe-area-inset-bottom, 0px));
@@ -8869,7 +9030,8 @@
         padding-right: var(--grid-gutter-xs);
       }
 
-      .product-page__purchase .cart {
+      .product-page__purchase form.cart:not(.variations_form),
+      .product-page__purchase .variations_form .woocommerce-variation-add-to-cart {
         padding-left: var(--grid-gutter-xs);
         padding-right: var(--grid-gutter-xs);
       }
