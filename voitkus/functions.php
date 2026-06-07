@@ -26,6 +26,7 @@ $voitkus_includes = [
     '/inc/emails/setup.php',
     '/inc/invoice-checkout.php',
     '/inc/cookie-consent.php',
+    '/inc/seo.php',
 ];
 
 foreach ($voitkus_includes as $relative) {
