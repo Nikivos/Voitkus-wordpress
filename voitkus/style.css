@@ -70,6 +70,37 @@
       padding-block: var(--section-pad);
     }
 
+    /* Orange accent line — section intros (jak wine) */
+    .profiles__header-text,
+    .lots__heading,
+    .why__header,
+    .wine__intro,
+    .grind__header,
+    .founder__content,
+    .reviews__header,
+    .shop-page__intro {
+      position: relative;
+      padding-top: 28px;
+    }
+
+    .profiles__header-text::before,
+    .lots__heading::before,
+    .why__header::before,
+    .wine__intro::before,
+    .grind__header::before,
+    .founder__content::before,
+    .reviews__header::before,
+    .shop-page__intro::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 48px;
+      height: 4px;
+      border-radius: 999px;
+      background: var(--lot-orange);
+    }
+
     @media (max-width: 900px) {
       :root {
         --section-pad: 64px;
@@ -209,6 +240,22 @@
       padding: 6px 0;
     }
 
+    .header-action--account,
+    .header-action--cart {
+      position: relative;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      padding: 0;
+      gap: 0;
+    }
+
+    .header-action__icon {
+      width: 22px;
+      height: 22px;
+      flex-shrink: 0;
+    }
+
     .header-action--language {
       justify-content: center;
       padding-right: 18px;
@@ -225,6 +272,15 @@
       color: var(--voitkus-white);
       font-size: 11px;
       line-height: 1;
+    }
+
+    .header-action--cart .cart-count {
+      position: absolute;
+      top: 2px;
+      right: -2px;
+      min-width: 18px;
+      height: 18px;
+      font-size: 10px;
     }
 
     .header-action--cart:hover .cart-count {
@@ -1662,19 +1718,7 @@
     }
 
     .wine__intro {
-      position: relative;
       max-width: 28rem;
-    }
-
-    .wine__intro::before {
-      content: "";
-      position: absolute;
-      top: -24px;
-      left: 0;
-      width: 48px;
-      height: 4px;
-      border-radius: 999px;
-      background: var(--lot-orange);
     }
 
     .wine__eyebrow {

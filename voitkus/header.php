@@ -88,11 +88,19 @@ $cart_count = voitkus_cart_count();
             <a class="header-action header-action--language" href="<?php echo esc_url(home_url('/')); ?>" aria-label="<?php esc_attr_e('Change language', 'voitkus'); ?>">
                 PL
             </a>
-            <a class="header-action header-action--account" href="<?php echo esc_url(voitkus_account_url()); ?>">
-                <span class="header-action__label"><?php esc_html_e('Konto', 'voitkus'); ?></span>
+            <a class="header-action header-action--account" href="<?php echo esc_url(voitkus_account_url()); ?>" aria-label="<?php esc_attr_e('Konto', 'voitkus'); ?>">
+                <svg class="header-action__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                    <circle cx="12" cy="8" r="4"/>
+                    <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+                </svg>
             </a>
-            <a class="header-action header-action--cart" href="<?php echo esc_url(voitkus_cart_url()); ?>">
-                <span class="header-action__label"><?php esc_html_e('Koszyk', 'voitkus'); ?></span>
+            <a class="header-action header-action--cart" href="<?php echo esc_url(voitkus_cart_url()); ?>" aria-label="<?php echo esc_attr(sprintf(/* translators: %d: cart items */ __('Koszyk, %d produktów', 'voitkus'), $cart_count)); ?>">
+                <svg class="header-action__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                    <path d="M6 6h15l-1.5 9h-12L6 6z"/>
+                    <path d="M6 6L5 3H2"/>
+                    <circle cx="9" cy="20" r="1"/>
+                    <circle cx="18" cy="20" r="1"/>
+                </svg>
                 <?php if ($cart_count > 0) : ?>
                     <span class="cart-count" data-voitkus-cart-count="desktop"><?php echo esc_html((string) $cart_count); ?></span>
                 <?php else : ?>
