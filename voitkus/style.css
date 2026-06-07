@@ -3075,6 +3075,40 @@
       opacity: 0.9;
     }
 
+    .stub-page .page-main__inner {
+      max-width: 56rem;
+    }
+
+    .stub-page__content {
+      max-width: 42rem;
+    }
+
+    .stub-page__lead {
+      margin: 0 0 16px;
+      font-size: clamp(18px, 2.2vw, 22px);
+      line-height: 1.5;
+    }
+
+    .stub-page__text {
+      margin: 0 0 28px;
+      color: rgba(10, 10, 10, 0.72);
+      line-height: 1.65;
+    }
+
+    .stub-page__actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 16px 20px;
+    }
+
+    .stub-page__link {
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: underline;
+      text-underline-offset: 0.18em;
+    }
+
     @media (max-width: 600px) {
       .contact-page__grid {
         grid-template-columns: 1fr;

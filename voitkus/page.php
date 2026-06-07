@@ -44,6 +44,12 @@ if (is_page()) {
     if (function_exists('voitkus_is_about_page') && voitkus_is_about_page()) {
         $page_classes .= ' about-page';
     }
+    if (
+        (function_exists('voitkus_is_brew_guides_page') && voitkus_is_brew_guides_page())
+        || (function_exists('voitkus_is_b2b_page') && voitkus_is_b2b_page())
+    ) {
+        $page_classes .= ' stub-page';
+    }
 }
 
 $inner_classes = 'page-main__inner';

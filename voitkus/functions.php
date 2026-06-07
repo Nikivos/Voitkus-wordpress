@@ -19,6 +19,7 @@ $voitkus_includes = [
     '/inc/legal/cookies.php',
     '/inc/legal/withdrawal.php',
     '/inc/contact-page.php',
+    '/inc/stub-pages.php',
     '/inc/about-page-meta.php',
     '/inc/about-page.php',
     '/inc/emails/setup.php',
@@ -1502,9 +1503,9 @@ function voitkus_default_menu(): void
 {
     $items = [
         __('Kawa', 'voitkus')     => home_url('/shop/'),
-        __('Parzenie', 'voitkus') => home_url('/brew-guides/'),
+        __('Parzenie', 'voitkus') => voitkus_brew_guides_page_url(),
         __('Palarnia', 'voitkus') => voitkus_about_page_url(),
-        __('B2B', 'voitkus')      => home_url('/b2b/'),
+        __('B2B', 'voitkus')      => voitkus_b2b_page_url(),
         __('Kontakt', 'voitkus')  => voitkus_contact_page_url(),
     ];
 
@@ -2717,9 +2718,9 @@ function voitkus_footer_link_groups(): array
             'title' => 'Voitkus',
             'links' => [
                 ['label' => __('Palarnia', 'voitkus'), 'url' => voitkus_about_page_url()],
-                ['label' => __('B2B', 'voitkus'), 'url' => home_url('/b2b/')],
+                ['label' => __('B2B', 'voitkus'), 'url' => voitkus_b2b_page_url()],
                 ['label' => __('Kontakt', 'voitkus'), 'url' => voitkus_contact_page_url()],
-                ['label' => __('Parzenie', 'voitkus'), 'url' => home_url('/brew-guides/')],
+                ['label' => __('Parzenie', 'voitkus'), 'url' => voitkus_brew_guides_page_url()],
             ],
         ],
         [

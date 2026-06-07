@@ -94,7 +94,7 @@ function voitkus_render_contact_page(): string
             <p class="contact-page__cta-text">
                 <?php esc_html_e('Zapytania hurtowe i stałe dostawy — przejdź do sekcji B2B.', 'voitkus'); ?>
             </p>
-            <a class="contact-page__btn" href="<?php echo esc_url(home_url('/b2b/')); ?>">
+            <a class="contact-page__btn" href="<?php echo esc_url(voitkus_b2b_page_url()); ?>">
                 <?php esc_html_e('Oferta B2B', 'voitkus'); ?>
             </a>
         </section>
