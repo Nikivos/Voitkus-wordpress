@@ -27,7 +27,8 @@ if ($weight_label === '' && function_exists('voitkus_lot_field')) {
     $weight_label = voitkus_lot_field((int) $product->get_id(), 'voitkus_weight', $product);
 }
 
-$facts = $lot['specs'];
+$facts         = $lot['specs'];
+$taste_profile = is_array($lot['taste_profile'] ?? null) ? $lot['taste_profile'] : [];
 
 if ($weight_label !== '') {
     unset($facts[__('Waga', 'voitkus')]);
@@ -148,7 +149,7 @@ if (! $product->is_in_stock()) {
                     </div>
                 <?php endif; ?>
 
-                <?php if (! empty($lot['notes'])) : ?>
+                <?php if (! empty($lot['notes']) && $taste_profile === []) : ?>
                     <div class="product-page__notes-block">
                         <p class="product-page__section-label"><?php esc_html_e('Nuty smakowe', 'voitkus'); ?></p>
                         <ul class="lot-card__notes product-page__notes" aria-label="<?php esc_attr_e('Nuty', 'voitkus'); ?>">
@@ -185,9 +186,47 @@ if (! $product->is_in_stock()) {
                         <li><?php esc_html_e('Mielenie pod Twoją metodę parzenia', 'voitkus'); ?></li>
                         <li><?php esc_html_e('Bezpieczna płatność i szybka dostawa', 'voitkus'); ?></li>
                     </ul>
+
+                    <?php if ($product->get_reviews_allowed() && comments_open()) : ?>
+                        <div class="product-page__review-form" aria-labelledby="reply-title">
+                            <p class="product-page__section-label"><?php esc_html_e('Twoja opinia', 'voitkus'); ?></p>
+                            <?php voitkus_render_product_review_form($product, true); ?>
+                        </div>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
+
+        <?php if ($taste_profile !== []) : ?>
+            <?php get_template_part('template-parts/product/taste-profile', null, ['items' => $taste_profile]); ?>
+        <?php endif; ?>
+
+        <?php if (voitkus_product_reviews_enabled($product)) : ?>
+            <section class="product-reviews product-reviews--list" id="opinie" aria-labelledby="product-reviews-title">
+                <div class="product-reviews__intro">
+                    <p class="product-page__section-label"><?php esc_html_e('Opinie', 'voitkus'); ?></p>
+                    <h2 id="product-reviews-title" class="product-reviews__title">
+                        <?php esc_html_e('Co mówią inni', 'voitkus'); ?>
+                    </h2>
+                    <?php if (function_exists('wc_review_ratings_enabled') && wc_review_ratings_enabled() && $product->get_review_count() > 0) : ?>
+                        <div class="product-reviews__summary">
+                            <?php echo wc_get_rating_html($product->get_average_rating()); ?>
+                            <span class="product-reviews__count">
+                                <?php
+                                printf(
+                                    esc_html(_n('%s opinia', '%s opinii', $product->get_review_count(), 'voitkus')),
+                                    number_format_i18n($product->get_review_count())
+                                );
+                                ?>
+                            </span>
+                        </div>
+                    <?php endif; ?>
+                </div>
+                <div id="reviews" class="woocommerce-Reviews product-reviews__panel product-reviews__panel--list">
+                    <?php voitkus_render_product_review_list(); ?>
+                </div>
+            </section>
+        <?php endif; ?>
 
         <?php if ($content !== '') : ?>
             <section class="product-page__description" aria-labelledby="product-description-title">

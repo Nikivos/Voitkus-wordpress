@@ -19,66 +19,90 @@ if (! is_array($lot) || ($lot['url'] ?? '') === '') {
 $style = ($lot['accent_css'] ?? '') !== ''
     ? ' style="--lot-accent: ' . esc_attr($lot['accent_css']) . ';"'
     : '';
+
+$product_id   = (int) ($lot['product_id'] ?? 0);
+$variation_id = (int) ($lot['variation_id'] ?? 0);
+$can_ajax_add = ! empty($lot['can_ajax_add']) && $product_id > 0;
 ?>
 
-<a
-    href="<?php echo esc_url($lot['url']); ?>"
+<article
     class="lot-card"
     data-lot-accent="<?php echo esc_attr($lot['accent'] ?? 'yellow'); ?>"
-    aria-label="<?php echo esc_attr(sprintf(/* translators: %s: product title */ __('Zobacz produkt: %s', 'voitkus'), $lot['title'])); ?>"
+    <?php echo $product_id > 0 ? ' data-product-id="' . esc_attr((string) $product_id) . '"' : ''; ?>
     <?php echo $style; ?>
 >
-    <div class="lot-card__visual">
-        <?php if (! empty($lot['brew_badges'])) : ?>
-            <div class="lot-card__brew-badges">
-                <?php foreach ($lot['brew_badges'] as $brew_badge) : ?>
-                    <span class="lot-card__brew-badge" data-brew="<?php echo esc_attr($brew_badge['slug']); ?>">
-                        <?php echo esc_html($brew_badge['label']); ?>
-                    </span>
-                <?php endforeach; ?>
-            </div>
-        <?php endif; ?>
+    <a
+        href="<?php echo esc_url($lot['url']); ?>"
+        class="lot-card__link"
+        aria-label="<?php echo esc_attr(sprintf(/* translators: %s: product title */ __('Zobacz produkt: %s', 'voitkus'), $lot['title'])); ?>"
+    >
+        <div class="lot-card__visual">
+            <?php if (! empty($lot['brew_badges'])) : ?>
+                <div class="lot-card__brew-badges">
+                    <?php foreach ($lot['brew_badges'] as $brew_badge) : ?>
+                        <span class="lot-card__brew-badge" data-brew="<?php echo esc_attr($brew_badge['slug']); ?>">
+                            <?php echo esc_html($brew_badge['label']); ?>
+                        </span>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
 
-        <?php if (($lot['badge'] ?? '') !== '') : ?>
-            <span class="lot-card__badge"><?php echo esc_html($lot['badge']); ?></span>
-        <?php endif; ?>
+            <?php if (($lot['badge'] ?? '') !== '') : ?>
+                <span class="lot-card__badge"><?php echo esc_html($lot['badge']); ?></span>
+            <?php endif; ?>
 
-        <?php if (($lot['image_html'] ?? '') !== '') : ?>
-            <div class="lot-card__image"><?php echo wp_kses_post($lot['image_html']); ?></div>
-        <?php else : ?>
-            <div class="lot-card__image lot-card__image--placeholder"><?php esc_html_e('FOTO PACZKI', 'voitkus'); ?></div>
-        <?php endif; ?>
-    </div>
-    <div class="lot-card__content">
-        <?php if (($lot['origin'] ?? '') !== '') : ?>
-            <p class="lot-card__origin"><?php echo esc_html($lot['origin']); ?></p>
-        <?php endif; ?>
-        <div class="lot-card__title-row">
-            <h3 class="lot-card__title"><?php echo esc_html($lot['title']); ?></h3>
-            <span class="lot-card__price"><?php echo wp_kses_post($lot['price_html']); ?></span>
+            <?php if (($lot['image_html'] ?? '') !== '') : ?>
+                <div class="lot-card__image"><?php echo wp_kses_post($lot['image_html']); ?></div>
+            <?php else : ?>
+                <div class="lot-card__image lot-card__image--placeholder"><?php esc_html_e('FOTO PACZKI', 'voitkus'); ?></div>
+            <?php endif; ?>
         </div>
+        <div class="lot-card__content">
+            <?php if (($lot['origin'] ?? '') !== '') : ?>
+                <p class="lot-card__origin"><?php echo esc_html($lot['origin']); ?></p>
+            <?php endif; ?>
+            <div class="lot-card__title-row">
+                <h3 class="lot-card__title"><?php echo esc_html($lot['title']); ?></h3>
+                <span class="lot-card__price"><?php echo wp_kses_post($lot['price_html']); ?></span>
+            </div>
 
-        <?php if (! empty($lot['hook'])) : ?>
-            <p class="lot-card__hook"><?php echo esc_html($lot['hook']); ?></p>
-        <?php endif; ?>
+            <?php if (! empty($lot['hook'])) : ?>
+                <p class="lot-card__hook"><?php echo esc_html($lot['hook']); ?></p>
+            <?php endif; ?>
 
-        <?php if (! empty($lot['notes'])) : ?>
-            <ul class="lot-card__notes" aria-label="<?php esc_attr_e('Nuty', 'voitkus'); ?>">
-                <?php foreach ($lot['notes'] as $note) : ?>
-                    <li class="lot-card__note"><?php echo esc_html($note); ?></li>
-                <?php endforeach; ?>
-            </ul>
-        <?php endif; ?>
+            <?php if (! empty($lot['notes'])) : ?>
+                <ul class="lot-card__notes" aria-label="<?php esc_attr_e('Nuty', 'voitkus'); ?>">
+                    <?php foreach ($lot['notes'] as $note) : ?>
+                        <li class="lot-card__note"><?php echo esc_html($note); ?></li>
+                    <?php endforeach; ?>
+                </ul>
+            <?php endif; ?>
 
-        <?php if (! empty($lot['specs'])) : ?>
-            <dl class="lot-card__specs">
-                <?php foreach ($lot['specs'] as $label => $value) : ?>
-                    <div class="lot-card__spec">
-                        <dt class="lot-card__spec-label"><?php echo esc_html($label); ?></dt>
-                        <dd class="lot-card__spec-value"><?php echo esc_html($value); ?></dd>
-                    </div>
-                <?php endforeach; ?>
-            </dl>
-        <?php endif; ?>
-    </div>
-</a>
+            <?php if (! empty($lot['specs'])) : ?>
+                <dl class="lot-card__specs">
+                    <?php foreach ($lot['specs'] as $label => $value) : ?>
+                        <div class="lot-card__spec">
+                            <dt class="lot-card__spec-label"><?php echo esc_html($label); ?></dt>
+                            <dd class="lot-card__spec-value"><?php echo esc_html($value); ?></dd>
+                        </div>
+                    <?php endforeach; ?>
+                </dl>
+            <?php endif; ?>
+        </div>
+    </a>
+
+    <?php if ($can_ajax_add) : ?>
+        <button
+            type="button"
+            class="lot-card__atc add_to_cart_button ajax_add_to_cart"
+            data-product_id="<?php echo esc_attr((string) $product_id); ?>"
+            <?php if ($variation_id > 0) : ?>
+                data-variation_id="<?php echo esc_attr((string) $variation_id); ?>"
+            <?php endif; ?>
+            data-quantity="1"
+            aria-label="<?php echo esc_attr(sprintf(/* translators: %s: product title */ __('Dodaj do koszyka: %s', 'voitkus'), $lot['title'])); ?>"
+        >
+            <?php esc_html_e('Dodaj do koszyka', 'voitkus'); ?>
+        </button>
+    <?php endif; ?>
+</article>

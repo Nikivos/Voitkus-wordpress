@@ -63,6 +63,7 @@ if (function_exists('is_account_page') && is_account_page()) {
             && is_checkout()
             && is_wc_endpoint_url('order-received');
         $hide_page_header = $is_order_received
+            || (function_exists('voitkus_is_about_page') && voitkus_is_about_page())
             || (
                 function_exists('is_account_page')
                 && is_account_page()
@@ -70,11 +71,27 @@ if (function_exists('is_account_page') && is_account_page()) {
                 && is_wc_endpoint_url('view-order')
             );
         ?>
+        <?php
+        $page_title = get_the_title();
+
+        if (
+            function_exists('is_account_page')
+            && is_account_page()
+            && ! is_user_logged_in()
+        ) {
+            $page_title = __('Konto', 'voitkus');
+        }
+        ?>
         <?php while (have_posts()) : ?>
             <?php the_post(); ?>
             <?php if (! $hide_page_header) : ?>
                 <header class="page-main__header">
-                    <h1 class="page-main__title"><?php the_title(); ?></h1>
+                    <h1 class="page-main__title"><?php echo esc_html($page_title); ?></h1>
+                    <?php if (function_exists('is_account_page') && is_account_page() && ! is_user_logged_in()) : ?>
+                        <p class="page-main__subtitle">
+                            <?php esc_html_e('Zaloguj się, aby śledzić zamówienia i zarządzać danymi dostawy.', 'voitkus'); ?>
+                        </p>
+                    <?php endif; ?>
                 </header>
             <?php endif; ?>
             <div class="page-main__content<?php echo $is_order_received ? ' woocommerce' : ''; ?>">

@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Voitkus — Animations Prototype</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="prototype.css">
+</head>
+<body>
+  <header class="proto-header">
+    <div class="proto-header__inner">
+      <p class="proto-header__brand">VOITKUS</p>
+      <nav class="proto-header__nav" aria-label="Demo sections">
+        <a href="#demo-reveal">Scroll reveal</a>
+        <a href="#demo-taste">Taste bars</a>
+        <a href="#demo-cart">Add to cart</a>
+      </nav>
+      <button type="button" class="proto-cart" id="proto-cart" aria-label="Koszyk">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M6 6h15l-1.5 9h-12L6 6Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+          <path d="M6 6 5 3H2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          <circle cx="9" cy="20" r="1.5" fill="currentColor"/>
+          <circle cx="18" cy="20" r="1.5" fill="currentColor"/>
+        </svg>
+        <span class="proto-cart__count" id="proto-cart-count">0</span>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <section class="proto-intro">
+      <p class="proto-eyebrow">Prototype · not production</p>
+      <h1>Animacje Voitkus</h1>
+      <p>Trzy interakcje z planu: scroll reveal (home), taste bars (PDP), add-to-cart feedback. Otwórz na mobile i desktop.</p>
+    </section>
+
+    <!-- 1. Scroll reveal -->
+    <section class="proto-demo" id="demo-reveal">
+      <div class="proto-demo__head" data-reveal>
+        <p class="proto-eyebrow">01 · Homepage</p>
+        <h2>Scroll reveal sekcji</h2>
+        <p>Fade + 16px w górę, stagger 60ms między kartami. Hero bez animacji.</p>
+      </div>
+
+      <div class="proto-hero-mock" aria-hidden="true">
+        <div>
+          <p class="proto-eyebrow">Hero — bez reveal</p>
+          <h3>Małe partie.<br>Konkretny smak.</h3>
+        </div>
+        <div class="proto-hero-mock__bag"></div>
+      </div>
+
+      <div class="proto-section-mock" data-reveal>
+        <h3>Dlaczego Voitkus</h3>
+        <div class="proto-cards" data-reveal-stagger="60">
+          <article class="proto-card" data-lot-accent="orange">
+            <span class="proto-card__dot"></span>
+            <h4>Małe partie</h4>
+            <p>Kontrola jakości partii po partii.</p>
+          </article>
+          <article class="proto-card" data-lot-accent="cyan">
+            <span class="proto-card__dot"></span>
+            <h4>Pochodzenie</h4>
+            <p>Region i proces na wierzchu.</p>
+          </article>
+          <article class="proto-card" data-lot-accent="magenta">
+            <span class="proto-card__dot"></span>
+            <h4>Profil smaku</h4>
+            <p>Opis zgodny z filiżanką.</p>
+          </article>
+        </div>
+      </div>
+
+      <div class="proto-section-mock proto-section-mock--wine" data-reveal>
+        <h3>Odkrywaj kawę jak wino</h3>
+        <div class="proto-wine-panel">
+          <div class="proto-wine-head">
+            <span></span><span>Wino</span><span>Kawa</span>
+          </div>
+          <div class="proto-wine-row"><span>01</span><span>Region</span><strong>Region</strong></div>
+          <div class="proto-wine-row"><span>02</span><span>Szczep</span><strong>Odmiana</strong></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. Taste bars -->
+    <section class="proto-demo proto-demo--dark" id="demo-taste">
+      <div class="proto-demo__head" data-reveal>
+        <p class="proto-eyebrow">02 · PDP</p>
+        <h2>Profil sensoryczny</h2>
+        <p>Paski rosną przy wejściu w viewport (800ms ease-out).</p>
+      </div>
+
+      <div class="proto-taste" data-taste-animate>
+        <div class="proto-taste__intro" data-reveal>
+          <p class="proto-eyebrow">Profil sensoryczny</p>
+          <h3>Kierunek smaku</h3>
+        </div>
+        <div class="proto-taste__bars">
+          <div class="proto-taste__row">
+            <span class="proto-taste__label">Kwasowość</span>
+            <div class="proto-taste__track"><span class="proto-taste__fill" data-fill="72"></span></div>
+            <span class="proto-taste__score">7</span>
+          </div>
+          <div class="proto-taste__row">
+            <span class="proto-taste__label">Słodycz</span>
+            <div class="proto-taste__track"><span class="proto-taste__fill" data-fill="55"></span></div>
+            <span class="proto-taste__score">5</span>
+          </div>
+          <div class="proto-taste__row">
+            <span class="proto-taste__label">Body</span>
+            <div class="proto-taste__track"><span class="proto-taste__fill" data-fill="40"></span></div>
+            <span class="proto-taste__score">4</span>
+          </div>
+          <div class="proto-taste__row">
+            <span class="proto-taste__label">Owocowość</span>
+            <div class="proto-taste__track"><span class="proto-taste__fill" data-fill="88"></span></div>
+            <span class="proto-taste__score">9</span>
+          </div>
+        </div>
+        <button type="button" class="proto-btn proto-btn--ghost" id="replay-taste">Odtwórz animację</button>
+      </div>
+    </section>
+
+    <!-- 3. Add to cart -->
+    <section class="proto-demo" id="demo-cart">
+      <div class="proto-demo__head" data-reveal>
+        <p class="proto-eyebrow">03 · PDP / Shop</p>
+        <h2>Add to cart feedback</h2>
+        <p>Klik → checkmark → kropka leci do koszyka → badge +1.</p>
+      </div>
+
+      <div class="proto-buybox" data-reveal>
+        <div class="proto-buybox__info">
+          <p class="proto-eyebrow">Ethiopia · Natural</p>
+          <h3>Yirgacheffe 2025</h3>
+          <p class="proto-price">89 zł · 250 g</p>
+        </div>
+        <div class="proto-buybox__actions">
+          <button type="button" class="proto-atc" id="proto-atc" data-atc>
+            <span class="proto-atc__label">Dodaj do koszyka</span>
+            <span class="proto-atc__done" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M5 12.5 10 17.5 19 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Dodano
+            </span>
+            <span class="proto-atc__fly" aria-hidden="true"></span>
+          </button>
+          <button type="button" class="proto-btn proto-btn--ghost" id="reset-cart">Reset koszyka</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="proto-footer">
+    <p>Prototype — po akceptacji przeniesiemy klasy/atrybuty do motywu (<code>data-reveal</code>, <code>data-taste-animate</code>, <code>data-atc</code>).</p>
+  </footer>
+
+  <script src="prototype.js"></script>
+</body>
+</html>

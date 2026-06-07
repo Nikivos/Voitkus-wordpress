@@ -22,35 +22,35 @@ function voitkus_product_meta_fields(): array
             'rows'        => 2,
             'placeholder' => __('Dla fanów owocowych przelewów', 'voitkus'),
         ],
-        'voitkus_origin' => [
-            'label'       => __('Pochodzenie (krótko)', 'voitkus'),
-            'description' => __('Np. Etiopia · Sidama. Gdy puste — kategoria produktu.', 'voitkus'),
+        'voitkus_country' => [
+            'label'       => __('Kraj', 'voitkus'),
+            'description' => __('Np. Brazylia, Etiopia — linia nad tytułem i karta produktu.', 'voitkus'),
             'type'        => 'text',
-            'placeholder' => 'Etiopia · Sidama',
-        ],
-        'voitkus_flavor_notes' => [
-            'label'       => __('Nuty smakowe', 'voitkus'),
-            'description' => __('Przecinki lub ukośniki: Herbata / Cytrusy / Kwiaty', 'voitkus'),
-            'type'        => 'text',
-            'placeholder' => 'Herbata / Cytrusy / Kwiaty',
-        ],
-        'voitkus_process' => [
-            'label'       => __('Proces', 'voitkus'),
-            'description' => __('Np. Naturalna, Myta', 'voitkus'),
-            'type'        => 'text',
-            'placeholder' => 'Naturalna',
+            'placeholder' => 'Brazylia',
         ],
         'voitkus_region' => [
             'label'       => __('Region', 'voitkus'),
-            'description' => __('Np. Sidama, Huila', 'voitkus'),
+            'description' => __('Np. Campo das Vertentes, Kaffa', 'voitkus'),
             'type'        => 'text',
-            'placeholder' => 'Sidama',
+            'placeholder' => 'Kaffa',
         ],
         'voitkus_variety' => [
             'label'       => __('Odmiana', 'voitkus'),
-            'description' => __('Np. Heirloom, Caturra', 'voitkus'),
+            'description' => __('Np. Yellow Bourbon, JARC', 'voitkus'),
             'type'        => 'text',
-            'placeholder' => 'Heirloom',
+            'placeholder' => 'Yellow Bourbon',
+        ],
+        'voitkus_process' => [
+            'label'       => __('Obróbka', 'voitkus'),
+            'description' => __('Np. Natural, Washed', 'voitkus'),
+            'type'        => 'text',
+            'placeholder' => 'Natural',
+        ],
+        'voitkus_altitude' => [
+            'label'       => __('Wysokość upraw', 'voitkus'),
+            'description' => __('Np. 1200 m n.p.m. lub 1900–2050 m n.p.m.', 'voitkus'),
+            'type'        => 'text',
+            'placeholder' => '1200 m n.p.m.',
         ],
         'voitkus_roast_level' => [
             'label'       => __('Palenie', 'voitkus'),
@@ -64,11 +64,67 @@ function voitkus_product_meta_fields(): array
             'type'        => 'text',
             'placeholder' => '250 g',
         ],
+        'voitkus_flavor_notes' => [
+            'label'       => __('Nuty smakowe', 'voitkus'),
+            'description' => __('Przecinki lub ukośniki: Herbata / Cytrusy / Kwiaty', 'voitkus'),
+            'type'        => 'text',
+            'placeholder' => 'Herbata / Cytrusy / Kwiaty',
+        ],
+        'voitkus_taste_profile' => [
+            'label'       => __('Kierunek smaku', 'voitkus'),
+            'description' => __('Jedna linia = jedna nuta. Format: Nazwa | 7, Nazwa: 7 lub Nazwa 7 (skala 0–10).', 'voitkus'),
+            'type'        => 'textarea',
+            'rows'        => 6,
+            'placeholder' => "Czekolada | 7\nOrzech | 8\nKakao | 6\nSłodycz | 8",
+        ],
         'voitkus_label_color' => [
             'label'       => __('Kolor etykiety', 'voitkus'),
             'description' => __('orange, yellow, magenta, cyan, lime lub hex (#FF6A00)', 'voitkus'),
             'type'        => 'text',
             'placeholder' => 'orange',
+        ],
+        'voitkus_origin' => [
+            'label'       => __('Pochodzenie (nadpisanie)', 'voitkus'),
+            'description' => __('Opcjonalnie — zastępuje linię Kraj · Region nad tytułem.', 'voitkus'),
+            'type'        => 'text',
+            'placeholder' => 'Etiopia · Sidama',
+        ],
+    ];
+}
+
+/**
+ * @return list<string>
+ */
+function voitkus_product_meta_admin_groups(): array
+{
+    return [
+        'marketing' => [
+            'title'  => '',
+            'fields' => ['voitkus_hook'],
+        ],
+        'origin' => [
+            'title'  => __('Pochodzenie i obróbka', 'voitkus'),
+            'fields' => [
+                'voitkus_country',
+                'voitkus_region',
+                'voitkus_variety',
+                'voitkus_process',
+                'voitkus_altitude',
+            ],
+        ],
+        'card' => [
+            'title'  => __('Dane na karcie produktu', 'voitkus'),
+            'fields' => [
+                'voitkus_roast_level',
+                'voitkus_weight',
+                'voitkus_flavor_notes',
+                'voitkus_label_color',
+                'voitkus_origin',
+            ],
+        ],
+        'taste' => [
+            'title'  => __('Profil sensoryczny', 'voitkus'),
+            'fields' => ['voitkus_taste_profile'],
         ],
     ];
 }
@@ -106,7 +162,7 @@ function voitkus_product_meta_bootstrap(): void
     add_action('woocommerce_product_data_panels', 'voitkus_product_data_panel');
     add_action('woocommerce_process_product_meta', 'voitkus_save_product_meta');
 }
-add_action('plugins_loaded', 'voitkus_product_meta_bootstrap');
+add_action('init', 'voitkus_product_meta_bootstrap', 20);
 
 function voitkus_product_data_tab(array $tabs): array
 {
@@ -128,24 +184,28 @@ function voitkus_product_data_panel(): void
         return;
     }
 
+    $fields = voitkus_product_meta_fields();
+
     echo '<div id="voitkus_product_data" class="panel woocommerce_options_panel hidden">';
 
-    $fields = voitkus_product_meta_fields();
-    $hook   = $fields['voitkus_hook'];
-    unset($fields['voitkus_hook']);
+    foreach (voitkus_product_meta_admin_groups() as $group) {
+        echo '<div class="options_group">';
 
-    echo '<div class="options_group">';
-    voitkus_render_product_meta_field('voitkus_hook', $hook, $post->ID);
-    echo '</div>';
+        if (($group['title'] ?? '') !== '') {
+            echo '<p class="form-field"><strong>' . esc_html($group['title']) . '</strong></p>';
+        }
 
-    echo '<div class="options_group">';
-    echo '<p class="form-field"><strong>' . esc_html__('Dane na karcie produktu', 'voitkus') . '</strong></p>';
+        foreach ($group['fields'] as $key) {
+            if (! isset($fields[ $key ])) {
+                continue;
+            }
 
-    foreach ($fields as $key => $field) {
-        voitkus_render_product_meta_field($key, $field, $post->ID);
+            voitkus_render_product_meta_field($key, $fields[ $key ], $post->ID);
+        }
+
+        echo '</div>';
     }
 
-    echo '</div>';
     echo '</div>';
 }
 

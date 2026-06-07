@@ -38,8 +38,9 @@ function voitkus_lot_product_id(WC_Product $product): int
 /**
  * Pole lotu: post meta → ACF → atrybut WC.
  *
- * Klucze: voitkus_origin, voitkus_process, voitkus_region, voitkus_variety,
- * voitkus_roast_level, voitkus_weight, voitkus_flavor_notes, voitkus_label_color, voitkus_hook.
+ * Klucze: voitkus_country, voitkus_origin, voitkus_process, voitkus_region, voitkus_variety,
+ * voitkus_altitude, voitkus_roast_level, voitkus_weight, voitkus_flavor_notes,
+ * voitkus_taste_profile, voitkus_label_color, voitkus_hook.
  */
 function voitkus_lot_field(int $product_id, string $meta_key, ?WC_Product $product = null): string
 {
@@ -95,6 +96,55 @@ function voitkus_lot_parse_list(string $raw): array
     $parts      = str_contains($normalized, '/') ? explode('/', $normalized) : explode(',', $normalized);
 
     return array_values(array_filter(array_map('trim', $parts)));
+}
+
+/**
+ * Profil smakowy: linie „Nazwa | 7”, „Nazwa: 7” lub „Nazwa 7” (skala 0–10).
+ *
+ * @return array<int, array{label: string, score: int, percent: int}>
+ */
+function voitkus_lot_parse_taste_profile(string $raw): array
+{
+    if ($raw === '') {
+        return [];
+    }
+
+    $items = [];
+
+    foreach (preg_split('/\r\n|\r|\n/', $raw) ?: [] as $line) {
+        $line = trim($line);
+
+        if ($line === '') {
+            continue;
+        }
+
+        $matched = preg_match('/^(.+?)\s*[|:]\s*(\d+(?:[.,]\d+)?)\s*$/u', $line, $match)
+            || preg_match('/^(.+?)\s+(\d+)\s*$/u', $line, $match);
+
+        if (! $matched) {
+            continue;
+        }
+
+        $label = trim($match[1]);
+        $score = (int) round((float) str_replace(',', '.', $match[2]));
+        $score = max(0, min(10, $score));
+
+        if ($label === '') {
+            continue;
+        }
+
+        $items[] = [
+            'label'   => $label,
+            'score'   => $score,
+            'percent' => $score * 10,
+        ];
+
+        if (count($items) >= 6) {
+            break;
+        }
+    }
+
+    return $items;
 }
 
 /**
@@ -190,6 +240,66 @@ function voitkus_lot_brew_badges(string $roast_level): array
 }
 
 /**
+ * @return array{can: bool, product_id: int, variation_id: int}
+ */
+function voitkus_lot_ajax_add_context(WC_Product $product): array
+{
+    $empty = [
+        'can'          => false,
+        'product_id'   => 0,
+        'variation_id' => 0,
+    ];
+
+    if (! $product->is_purchasable() || ! $product->is_in_stock()) {
+        return $empty;
+    }
+
+    if ($product->is_type('simple')) {
+        return [
+            'can'          => true,
+            'product_id'   => $product->get_id(),
+            'variation_id' => 0,
+        ];
+    }
+
+    if (! $product->is_type('variable')) {
+        return $empty;
+    }
+
+    $data_store   = WC_Data_Store::load('product');
+    $variation_id = (int) $data_store->find_matching_product_variation($product, $product->get_default_attributes());
+
+    if ($variation_id <= 0) {
+        $children = $product->get_children();
+
+        foreach ($children as $child_id) {
+            $variation = wc_get_product((int) $child_id);
+
+            if ($variation instanceof WC_Product_Variation && $variation->is_purchasable() && $variation->is_in_stock()) {
+                $variation_id = (int) $child_id;
+                break;
+            }
+        }
+    }
+
+    if ($variation_id <= 0) {
+        return $empty;
+    }
+
+    $variation = wc_get_product($variation_id);
+
+    if (! $variation instanceof WC_Product_Variation || ! $variation->is_purchasable() || ! $variation->is_in_stock()) {
+        return $empty;
+    }
+
+    return [
+        'can'          => true,
+        'product_id'   => $product->get_id(),
+        'variation_id' => $variation_id,
+    ];
+}
+
+/**
  * @return array{url:string,image_html:string,origin:string,title:string,price_html:string,hook:string,specs:array<string,string>,notes:array<int,string>,badge:string,brew_badges:array<int,array{slug:string,label:string}>,accent:string,accent_css:string,add_to_cart:string}
  */
 function voitkus_build_lot_from_product(WC_Product $product, int $index): array
@@ -198,6 +308,19 @@ function voitkus_build_lot_from_product(WC_Product $product, int $index): array
     $field  = static fn (string $key): string => voitkus_lot_field($lot_id, $key, $product);
 
     $origin = $field('voitkus_origin');
+
+    if ($origin === '') {
+        $country = $field('voitkus_country');
+        $region  = $field('voitkus_region');
+
+        if ($country !== '' && $region !== '') {
+            $origin = $country . ' · ' . $region;
+        } elseif ($country !== '') {
+            $origin = $country;
+        } elseif ($region !== '') {
+            $origin = $region;
+        }
+    }
 
     if ($origin === '') {
         $terms = get_the_terms($lot_id, 'product_cat');
@@ -230,11 +353,12 @@ function voitkus_build_lot_from_product(WC_Product $product, int $index): array
     $brew_badges = voitkus_lot_brew_badges($roast_level);
 
     $spec_map = [
-        __('Proces', 'voitkus')  => 'voitkus_process',
-        __('Region', 'voitkus')  => 'voitkus_region',
-        __('Odmiana', 'voitkus') => 'voitkus_variety',
-        __('Palenie', 'voitkus') => 'voitkus_roast_level',
-        __('Waga', 'voitkus')    => 'voitkus_weight',
+        __('Region', 'voitkus')         => 'voitkus_region',
+        __('Odmiana', 'voitkus')        => 'voitkus_variety',
+        __('Obróbka', 'voitkus')        => 'voitkus_process',
+        __('Wysokość upraw', 'voitkus') => 'voitkus_altitude',
+        __('Palenie', 'voitkus')        => 'voitkus_roast_level',
+        __('Waga', 'voitkus')           => 'voitkus_weight',
     ];
 
     $specs = [];
@@ -250,6 +374,7 @@ function voitkus_build_lot_from_product(WC_Product $product, int $index): array
     }
 
     $notes = voitkus_lot_parse_list($field('voitkus_flavor_notes'));
+    $taste = voitkus_lot_parse_taste_profile($field('voitkus_taste_profile'));
 
     $hook = $field('voitkus_hook');
     if ($hook === '') {
@@ -262,17 +387,22 @@ function voitkus_build_lot_from_product(WC_Product $product, int $index): array
     $color      = voitkus_lot_label_color($field('voitkus_label_color'));
     $accent     = $color['accent'] !== '' ? $color['accent'] : voitkus_lot_accent($index);
     $accent_css = $color['accent_css'];
+    $ajax_add   = voitkus_lot_ajax_add_context($product);
 
     return [
-        'url'         => (string) get_permalink($product->get_id()),
-        'image_html'  => $product->get_image('large', ['class' => 'lot-card__img']),
+        'url'          => (string) get_permalink($product->get_id()),
+        'product_id'   => (int) $ajax_add['product_id'] > 0 ? (int) $ajax_add['product_id'] : $lot_id,
+        'variation_id' => (int) ($ajax_add['variation_id'] ?? 0),
+        'can_ajax_add' => ! empty($ajax_add['can']),
+        'image_html'   => $product->get_image('large', ['class' => 'lot-card__img']),
         'origin'      => $origin,
         'title'       => $product->get_name(),
         'price_html'  => voitkus_lot_price_html($product),
         'hook'        => $hook,
         'specs'       => $specs,
-        'notes'       => $notes,
-        'badge'       => $badge,
+        'notes'          => $notes,
+        'taste_profile'  => $taste,
+        'badge'          => $badge,
         'brew_badges' => $brew_badges,
         'accent'      => $accent,
         'accent_css'  => $accent_css,
@@ -478,7 +608,7 @@ function voitkus_fallback_lots(): array
             'price_html'  => '62 zł',
             'hook'        => __('Pierwszy łyk jak kwiatowa herbata.', 'voitkus'),
             'specs'       => [
-                __('Proces', 'voitkus')  => __('Natural', 'voitkus'),
+                __('Obróbka', 'voitkus')  => __('Natural', 'voitkus'),
                 __('Region', 'voitkus')  => 'Sidama',
                 __('Odmiana', 'voitkus') => 'Heirloom',
                 __('Palenie', 'voitkus') => __('Filter', 'voitkus'),
@@ -499,7 +629,7 @@ function voitkus_fallback_lots(): array
             'price_html'  => '49 zł',
             'hook'        => __('Klasyk do codziennego kubka.', 'voitkus'),
             'specs'       => [
-                __('Proces', 'voitkus')  => __('Washed', 'voitkus'),
+                __('Obróbka', 'voitkus')  => __('Washed', 'voitkus'),
                 __('Region', 'voitkus')  => 'Huila',
                 __('Odmiana', 'voitkus') => 'Caturra',
                 __('Palenie', 'voitkus') => __('Omni', 'voitkus'),
@@ -520,7 +650,7 @@ function voitkus_fallback_lots(): array
             'price_html'  => '52 zł',
             'hook'        => __('Słodki, kremowy strzał espresso.', 'voitkus'),
             'specs'       => [
-                __('Proces', 'voitkus')  => __('Natural', 'voitkus'),
+                __('Obróbka', 'voitkus')  => __('Natural', 'voitkus'),
                 __('Region', 'voitkus')  => 'Cerrado',
                 __('Odmiana', 'voitkus') => 'Mundo Novo',
                 __('Palenie', 'voitkus') => __('Espresso', 'voitkus'),
@@ -566,13 +696,16 @@ function voitkus_lots_debug(): void
     }
 
     $keys = [
+        'voitkus_country',
         'voitkus_origin',
         'voitkus_process',
         'voitkus_region',
         'voitkus_variety',
+        'voitkus_altitude',
         'voitkus_roast_level',
         'voitkus_weight',
         'voitkus_flavor_notes',
+        'voitkus_taste_profile',
         'voitkus_label_color',
         'voitkus_hook',
     ];
