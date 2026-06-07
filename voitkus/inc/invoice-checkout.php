@@ -140,6 +140,44 @@ function voitkus_register_invoice_checkout_fields(array $fields): array
 }
 add_filter('woocommerce_checkout_fields', 'voitkus_register_invoice_checkout_fields', 20);
 
+function voitkus_checkout_needs_shipping_phone(): bool
+{
+    return function_exists('WC')
+        && WC()->cart instanceof WC_Cart
+        && WC()->cart->needs_shipping();
+}
+
+function voitkus_require_checkout_billing_phone(array $fields): array
+{
+    if (! voitkus_checkout_needs_shipping_phone()) {
+        return $fields;
+    }
+
+    if (isset($fields['billing']['billing_phone'])) {
+        $fields['billing']['billing_phone']['required'] = true;
+    }
+
+    return $fields;
+}
+add_filter('woocommerce_checkout_fields', 'voitkus_require_checkout_billing_phone', 15);
+
+function voitkus_validate_checkout_billing_phone(array $data, WP_Error $errors): void
+{
+    if (! voitkus_checkout_needs_shipping_phone()) {
+        return;
+    }
+
+    $phone = trim((string) ($data['billing_phone'] ?? ''));
+
+    if ($phone === '') {
+        $errors->add(
+            'billing_phone_required',
+            __('Podaj numer telefonu — jest wymagany przy dostawie.', 'voitkus')
+        );
+    }
+}
+add_action('woocommerce_after_checkout_validation', 'voitkus_validate_checkout_billing_phone', 10, 2);
+
 function voitkus_validate_invoice_checkout_fields(array $data, WP_Error $errors): void
 {
     if (! voitkus_checkout_invoice_requested($data)) {
